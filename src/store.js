@@ -236,6 +236,103 @@ export async function underPlacesCap(cap) {
   return placesRequests < Number(cap);
 }
 
+// ── Campaigns (#28) ─────────────────────────────────────────────────────────
+// The rotating list of {city, category} searches the worker (#30) consumes. One
+// doc per search, keyed by a slug of "<category> in <city>". Progress aggregates
+// (progress/totalLeads/priorityLeads/averageScore/status) are borrowed from
+// Prospex (MIT) and maintained by the worker — see docs/prior-art.md.
+
+/** Slug key for a campaign, e.g. ("Brampton, ON","roofers") -> "roofers-in-brampton-on". */
+export function campaignSlug(city, category) {
+  return `${category} in ${city}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+/**
+ * Upsert a campaign (idempotent by slug). Provided cadence/maxPages always win;
+ * omitted ones default only on insert so re-adding never clobbers tuned values.
+ * @param {{city:string, category:string, cadenceDays?:number, maxPages?:number}} input
+ * @returns {Promise<object>} the stored campaign doc.
+ */
+export async function addCampaign({ city, category, cadenceDays, maxPages } = {}) {
+  if (!city || !category) throw new Error("addCampaign requires city and category.");
+  const campaigns = await getColl("campaigns");
+  const _id = campaignSlug(city, category);
+  const now = new Date();
+
+  const set = { city: String(city).trim(), category: String(category).trim(), updatedAt: now };
+  const onInsert = {
+    enabled: true,
+    lastRunAt: null,
+    foundTotal: 0,
+    // progress aggregates (Prospex-borrowed; worker-maintained)
+    status: "draft", // draft | running | done | error
+    progress: 0,
+    totalLeads: 0,
+    priorityLeads: 0,
+    averageScore: 0,
+    createdAt: now,
+  };
+
+  const cadence = Math.trunc(Number(cadenceDays));
+  if (Number.isFinite(cadence) && cadence > 0) set.cadenceDays = cadence;
+  else onInsert.cadenceDays = 14;
+
+  const pages = Math.trunc(Number(maxPages));
+  if (Number.isFinite(pages) && pages > 0) set.maxPages = pages;
+  else onInsert.maxPages = 5;
+
+  await campaigns.updateOne({ _id }, { $set: set, $setOnInsert: onInsert }, { upsert: true });
+  return campaigns.findOne({ _id });
+}
+
+/** All campaigns, enabled first then stalest-first (nulls sort before dates). */
+export async function listCampaigns() {
+  const campaigns = await getColl("campaigns");
+  return campaigns.find({}).sort({ enabled: -1, lastRunAt: 1, _id: 1 }).toArray();
+}
+
+/**
+ * Toggle a campaign's enabled flag.
+ * @returns {Promise<object|null>} the updated doc, or null if no such id.
+ */
+export async function setCampaignEnabled(id, enabled) {
+  const campaigns = await getColl("campaigns");
+  const res = await campaigns.findOneAndUpdate(
+    { _id: id },
+    { $set: { enabled: !!enabled, updatedAt: new Date() } },
+    { returnDocument: "after" }
+  );
+  return res && res.value !== undefined ? res.value : res;
+}
+
+/** Whether a campaign is due to run now (never-run, or older than its cadence). */
+export function isCampaignDue(c, now = new Date()) {
+  if (!c) return false;
+  if (!c.lastRunAt) return true;
+  const last = c.lastRunAt instanceof Date ? c.lastRunAt : new Date(c.lastRunAt);
+  if (Number.isNaN(last.getTime())) return true;
+  const cadenceMs = (Number(c.cadenceDays) || 14) * 24 * 60 * 60 * 1000;
+  return now.getTime() - last.getTime() >= cadenceMs;
+}
+
+/**
+ * The oldest due, enabled campaign — the one the worker should run next.
+ * @returns {Promise<object|null>} null when none are enabled-and-due.
+ */
+export async function pickStalestCampaign(now = new Date()) {
+  const campaigns = await getColl("campaigns");
+  // Stalest first: null lastRunAt (never run) sorts ahead of any date.
+  const enabled = await campaigns.find({ enabled: true }).sort({ lastRunAt: 1, _id: 1 }).toArray();
+  for (const c of enabled) {
+    if (isCampaignDue(c, now)) return c;
+  }
+  return null;
+}
+
 // ── helpers ─────────────────────────────────────────────────────────────────
 function todayBounds() {
   const start = new Date();

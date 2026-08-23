@@ -12,7 +12,14 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { parseCsv, stringifyCsv } from "./csv.js";
 import { csvToRecord } from "./pipeline.js";
-import { importRecords, stats, listLeads } from "./store.js";
+import {
+  importRecords,
+  stats,
+  listLeads,
+  addCampaign,
+  listCampaigns,
+  setCampaignEnabled,
+} from "./store.js";
 import { toVCards } from "./vcard.js";
 import { close } from "./db.js";
 
@@ -20,7 +27,7 @@ function main() {
   const [cmd, ...rest] = process.argv.slice(2);
   if (!cmd || cmd === "-h" || cmd === "--help") return printHelp(!cmd);
 
-  const commands = { import: cmdImport, stats: cmdStats, due: cmdDue, export: cmdExport };
+  const commands = { import: cmdImport, stats: cmdStats, due: cmdDue, export: cmdExport, campaign: cmdCampaign };
   const handler = commands[cmd];
   if (!handler) {
     console.error(`Unknown command: ${cmd}`);
@@ -120,6 +127,76 @@ async function cmdExport(argv) {
   console.log(`Exported ${leads.length} lead(s) -> ${outFile} (${asVcard ? "vCard" : "CSV"})`);
 }
 
+// ── campaign <add|list|enable|disable> ──────────────────────────────────────
+async function cmdCampaign(argv) {
+  const [sub, ...rest] = argv;
+  switch (sub) {
+    case "add":
+      return campaignAdd(rest);
+    case undefined:
+    case "list":
+      return campaignList();
+    case "enable":
+      return campaignToggle(rest[0], true);
+    case "disable":
+      return campaignToggle(rest[0], false);
+    default:
+      console.error(`Unknown campaign subcommand: ${sub}  (add | list | enable <id> | disable <id>)`);
+      process.exitCode = 1;
+  }
+}
+
+async function campaignAdd(argv) {
+  const o = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--city") o.city = argv[++i];
+    else if (a === "--category") o.category = argv[++i];
+    else if (a === "--cadence") o.cadenceDays = Number(argv[++i]);
+    else if (a === "--max-pages") o.maxPages = Number(argv[++i]);
+    else console.error(`Ignoring unknown campaign add option: ${a}`);
+  }
+  if (!o.city || !o.category) {
+    console.error('\nUsage: crm-cli campaign add --city "Brampton, ON" --category roofers [--cadence 14] [--max-pages 5]\n');
+    process.exitCode = 1;
+    return;
+  }
+  const c = await addCampaign(o);
+  console.log(`Campaign saved: ${c._id}`);
+  console.log(`  ${c.category} in ${c.city}  (cadence ${c.cadenceDays}d, maxPages ${c.maxPages}, ${c.enabled ? "enabled" : "disabled"})`);
+}
+
+async function campaignList() {
+  const list = await listCampaigns();
+  if (list.length === 0) {
+    console.log('\nNo campaigns yet. Add one:\n  node src/crm-cli.js campaign add --city "Brampton, ON" --category roofers');
+    return;
+  }
+  console.log(`\nCampaigns (${list.length}):`);
+  for (const c of list) {
+    const flag = c.enabled ? "on " : "off";
+    const last = c.lastRunAt ? fmtDate(c.lastRunAt) : "never";
+    console.log(`  [${flag}] ${c._id}`);
+    console.log(`        last run ${last} · cadence ${c.cadenceDays}d · maxPages ${c.maxPages} · found ${c.foundTotal ?? 0}`);
+    console.log(`        progress ${c.progress ?? 0}% · leads ${c.totalLeads ?? 0} (priority ${c.priorityLeads ?? 0}) · avg score ${c.averageScore ?? 0} · ${c.status ?? "draft"}`);
+  }
+}
+
+async function campaignToggle(id, enabled) {
+  if (!id) {
+    console.error(`\nUsage: crm-cli campaign ${enabled ? "enable" : "disable"} <id>   (get ids from: campaign list)\n`);
+    process.exitCode = 1;
+    return;
+  }
+  const c = await setCampaignEnabled(id, enabled);
+  if (!c) {
+    console.error(`\nNo campaign with id "${id}". Run: node src/crm-cli.js campaign list\n`);
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`Campaign ${c._id} ${c.enabled ? "enabled" : "disabled"}.`);
+}
+
 function exportRow(l) {
   return {
     Priority: l.priority ?? "",
@@ -163,7 +240,7 @@ function fmtDate(d) {
 }
 
 function printHelp(missingCmd) {
-  if (missingCmd) console.log("\nTell me what to do: import | stats | due | export");
+  if (missingCmd) console.log("\nTell me what to do: import | stats | due | export | campaign");
   console.log(`
 CRM CLI — import leads into the master DB and check status.
 
@@ -173,6 +250,8 @@ Usage:
   node src/crm-cli.js due                                   List leads whose follow-up is due
   node src/crm-cli.js export <file.csv> [filters]           Export filtered leads to CSV
   node src/crm-cli.js export <file.vcf> --vcard [filters]   Export filtered leads to vCard
+  node src/crm-cli.js campaign add --city "Brampton, ON" --category roofers [--cadence 14] [--max-pages 5]
+  node src/crm-cli.js campaign list | enable <id> | disable <id>
 
 Filters (export): --status <s>  --tier <t>  --category <c>  --text <q>
 
@@ -180,6 +259,7 @@ Notes:
   • import derives a search label from the filename (leads-<slug>.csv -> <slug>).
   • Re-importing the same CSV updates facts but never overwrites status/notes/dates.
   • export infers vCard from a .vcf extension or --vcard (great for phone outreach).
+  • campaigns feed the background worker (npm run worker); it runs the stalest enabled one per tick.
 `);
 }
 
