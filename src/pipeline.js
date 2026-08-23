@@ -8,6 +8,9 @@ export const UNIFIED_COLUMNS = [
   ["Tier", "Tier"],
   ["Business", "Business"],
   ["Phone", "Phone"],
+  ["Email", "Email"],
+  ["Socials", "Socials"],
+  ["NeedsVerification", "NeedsVerification"],
   ["Issues", "Issues"],
   ["Pitch", "Pitch"],
   ["Website", "Website"],
@@ -40,10 +43,10 @@ export function csvToRecord(r) {
   // the header-name mapping lives; accept a key-keyed row as a fallback.
   const keyed = {};
   for (const [key, label] of UNIFIED_COLUMNS) keyed[key] = r[label] ?? r[key];
-  // Contact fields (added in P3 / #32) — read defensively, default empty.
-  keyed.Email = r.Email ?? "";
-  keyed.Socials = r.Socials ?? "";
-  keyed.NeedsVerification = r.NeedsVerification ?? "";
+  // Contact fields (P3 / #32) — keep UNIFIED_COLUMNS values; default empty.
+  keyed.Email = keyed.Email ?? r.Email ?? "";
+  keyed.Socials = keyed.Socials ?? r.Socials ?? "";
+  keyed.NeedsVerification = keyed.NeedsVerification ?? r.NeedsVerification ?? "";
   return keyedRowToRecord(keyed);
 }
 
@@ -58,9 +61,14 @@ export function csvToRecord(r) {
  */
 export function recordFrom(lead, entry) {
   const row = toUnifiedRow(lead, entry);
-  row.Email = lead.email ?? "";
-  row.Socials = lead.socials ?? "";
-  row.NeedsVerification = lead.needsVerification ?? "";
+  // Audit-captured contact wins; lead-level values fill gaps (e.g. CSV re-import).
+  if (!row.Email) row.Email = lead.email ?? "";
+  if (!row.Socials) {
+    row.Socials = Array.isArray(lead.socials) ? lead.socials.join("; ") : (lead.socials ?? "");
+  }
+  if (row.NeedsVerification === "" || row.NeedsVerification == null) {
+    row.NeedsVerification = lead.needsVerification ?? "";
+  }
   return keyedRowToRecord(row);
 }
 
@@ -188,6 +196,9 @@ function toUnifiedRow(lead, entry) {
     PsiMobile: "",
     PsiSeo: "",
     Lcp: "",
+    Email: "",
+    Socials: "",
+    NeedsVerification: "",
   };
 
   if (entry) {
@@ -204,6 +215,9 @@ function toUnifiedRow(lead, entry) {
     row.PsiMobile = psi ? (psi.ok ? psi.performance ?? "" : "err") : "";
     row.PsiSeo = psi?.ok ? psi.seo ?? "" : "";
     row.Lcp = psi?.ok && psi.lcpSec != null ? psi.lcpSec : "";
+    row.Email = a.email ?? "";
+    row.Socials = Array.isArray(a.socials) ? a.socials.join("; ") : "";
+    row.NeedsVerification = a.needsVerification ? "true" : "false";
   } else if (lead.tier === "SKIP") {
     row.Priority = 1;
     row.Issues = "closed / not operational";

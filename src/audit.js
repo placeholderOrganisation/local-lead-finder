@@ -40,6 +40,9 @@ export async function auditSite(rawUrl) {
   const status = res.status;
 
   if (status >= 400) {
+    // Same response — read the body for contact crumbs, no extra request.
+    const html = await readCapped(res, 1_500_000);
+    const { email, socials } = extractContacts(html, finalUrl);
     return {
       ...base(rawUrl, finalUrl),
       reachable: true,
@@ -48,6 +51,9 @@ export async function auditSite(rawUrl) {
       loadMs,
       issues: [`site returns an error (HTTP ${status})`],
       priority: 5,
+      email,
+      socials,
+      needsVerification: true,
     };
   }
 
@@ -69,6 +75,7 @@ export async function auditSite(rawUrl) {
     issues.push(`looks outdated (© ${checks.staleYear} in footer)`);
   }
 
+  const { email, socials } = extractContacts(html, finalUrl);
   return {
     ...base(rawUrl, finalUrl),
     reachable: true,
@@ -81,6 +88,9 @@ export async function auditSite(rawUrl) {
     copyrightYear: checks.staleYear ?? "",
     issues,
     priority: priorityFrom(issues, { secure, mobileFriendly: checks.hasViewport }),
+    email,
+    socials,
+    needsVerification: false,
   };
 }
 
@@ -208,5 +218,194 @@ function unreachable(inputUrl, why) {
     reachable: false,
     issues: [`unreachable (${why})`],
     priority: 4,
+    email: "",
+    socials: [],
+    needsVerification: true,
   };
+}
+
+// --- Contact capture (P3 / #32) — parse the HTML we already fetched ----------
+// No extra HTTP. mailto + filtered regex for email; fb/ig/linkedin/x for socials.
+
+const FILE_EXT_TLD = /^(png|jpe?g|gif|webp|svg|ico|bmp|woff2?|ttf|otf|eot|css|js|mjs|map|mp4|webm|mp3|pdf|json)$/i;
+const JUNK_LOCAL =
+  /^(no-?reply|do-?not-?reply|donotreply|mailer-daemon|postmaster|unsub(scribe)?|bounce|notifications?|mailer|privacy-noreply)$/i;
+const VENDOR_DOMAINS = new Set([
+  "wix.com",
+  "wixpress.com",
+  "squarespace.com",
+  "shopify.com",
+  "sentry.io",
+  "google.com",
+  "googleapis.com",
+  "gstatic.com",
+  "cloudflare.com",
+  "godaddy.com",
+  "schema.org",
+  "w3.org",
+  "example.com",
+  "example.org",
+  "amazonaws.com",
+  "cloudfront.net",
+  "jsdelivr.net",
+  "unpkg.com",
+  "gravatar.com",
+  "facebook.com",
+  "instagram.com",
+]);
+const PREFERRED_LOCAL = /^(info|hello|contact|office|admin|inquir(?:y|ies)|enquiry|team|owner)$/i;
+const EMAIL_RX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,24}/gi;
+const MAILTO_RX = /mailto:([^\s"'?>]+)/gi;
+const HREF_RX = /href\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi;
+const ABS_URL_RX = /https?:\/\/[^\s"'<>]+/gi;
+
+const SOCIAL_RULES = [
+  { host: /^(www\.)?(facebook|fb)\.com$/i, skip: /sharer|share\.php|dialog|plugins|\/tr\b/i },
+  { host: /^(www\.)?instagram\.com$/i, skip: /\/(p|reel|stories|ar)\//i },
+  { host: /^(www\.)?linkedin\.com$/i, skip: /shareArticle|sharing|uas\/|signup/i },
+  { host: /^(www\.)?(twitter|x)\.com$/i, skip: /intent|share|home\/?$|\bsearch\b/i },
+];
+
+/**
+ * Pull a contact email + social profile URLs from homepage HTML.
+ * Prefers an address on the site's own domain; drops no-reply/vendor/tracking junk.
+ * @param {string} html
+ * @param {string} [pageUrl]
+ * @returns {{email:string, socials:string[]}}
+ */
+export function extractContacts(html, pageUrl = "") {
+  if (!html) return { email: "", socials: [] };
+  const host = hostOf(pageUrl);
+  return { email: pickEmail(findEmails(html), host), socials: findSocials(html, pageUrl) };
+}
+
+function findEmails(html) {
+  const found = new Set();
+  const stripped = String(html)
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ");
+
+  let m;
+  MAILTO_RX.lastIndex = 0;
+  while ((m = MAILTO_RX.exec(stripped)) !== null) {
+    const raw = decodeURIComponentSafe(m[1]).split("?")[0];
+    addEmail(found, raw);
+  }
+
+  EMAIL_RX.lastIndex = 0;
+  while ((m = EMAIL_RX.exec(stripped)) !== null) {
+    addEmail(found, m[0]);
+  }
+  return [...found];
+}
+
+function addEmail(set, raw) {
+  const email = String(raw || "")
+    .replace(/^mailto:/i, "")
+    .replace(/&amp;/g, "&")
+    .trim()
+    .toLowerCase()
+    .replace(/[.,;:>]+$/, "");
+  if (isPlausibleEmail(email) && !isJunkEmail(email)) set.add(email);
+}
+
+function isPlausibleEmail(e) {
+  if (!e || e.length > 80 || e.includes("..")) return false;
+  if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,24}$/.test(e)) return false;
+  const tld = e.split(".").pop();
+  if (FILE_EXT_TLD.test(tld)) return false;
+  const [local, domain] = e.split("@");
+  if (!local || !domain) return false;
+  if (local.startsWith(".") || local.endsWith(".")) return false;
+  if (domain.startsWith(".") || domain.endsWith(".") || !domain.includes(".")) return false;
+  return true;
+}
+
+function isJunkEmail(e) {
+  const [local, domain] = e.split("@");
+  if (JUNK_LOCAL.test(local)) return true;
+  return vendorDomain(domain);
+}
+
+function vendorDomain(domain) {
+  const parts = domain.split(".");
+  const candidates = [domain];
+  if (parts.length >= 2) candidates.push(parts.slice(-2).join("."));
+  if (parts.length >= 3) candidates.push(parts.slice(-3).join("."));
+  return candidates.some((d) => VENDOR_DOMAINS.has(d));
+}
+
+function pickEmail(emails, siteHost) {
+  if (!emails.length) return "";
+  const own = emails.filter((e) => emailMatchesHost(e, siteHost));
+  const pool = own.length ? own : emails;
+  pool.sort((a, b) => Number(PREFERRED_LOCAL.test(b.split("@")[0])) - Number(PREFERRED_LOCAL.test(a.split("@")[0])));
+  return pool[0];
+}
+
+function emailMatchesHost(email, siteHost) {
+  if (!siteHost) return false;
+  const domain = email.split("@")[1];
+  if (!domain) return false;
+  return domain === siteHost || domain.endsWith("." + siteHost) || siteHost.endsWith("." + domain);
+}
+
+function findSocials(html, pageUrl) {
+  const found = [];
+  const seen = new Set();
+  const consider = (raw) => {
+    const canon = canonicalSocial(raw, pageUrl);
+    if (!canon || seen.has(canon)) return;
+    seen.add(canon);
+    found.push(canon);
+  };
+
+  let m;
+  HREF_RX.lastIndex = 0;
+  while ((m = HREF_RX.exec(html)) !== null) {
+    consider(m[1] || m[2] || m[3] || "");
+  }
+  ABS_URL_RX.lastIndex = 0;
+  while ((m = ABS_URL_RX.exec(html)) !== null) {
+    consider(m[0]);
+  }
+  return found;
+}
+
+function canonicalSocial(raw, pageUrl) {
+  if (!raw) return "";
+  let href = String(raw).trim().replace(/&amp;/g, "&");
+  if (!href || href.startsWith("javascript:") || href.startsWith("mailto:")) return "";
+  let u;
+  try {
+    u = new URL(href, pageUrl || "https://example.invalid");
+  } catch {
+    return "";
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return "";
+  const host = u.hostname.toLowerCase();
+  const rule = SOCIAL_RULES.find((r) => r.host.test(host));
+  if (!rule) return "";
+  const full = u.hostname + u.pathname;
+  if (rule.skip.test(u.href) || rule.skip.test(full)) return "";
+  const path = u.pathname.replace(/\/+$/, "") || "";
+  if (!path || path === "/") return "";
+  return `${u.protocol}//${u.hostname}${path}`;
+}
+
+function hostOf(url) {
+  if (!url) return "";
+  try {
+    return new URL(url).hostname.replace(/^www\./i, "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function decodeURIComponentSafe(s) {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
 }
