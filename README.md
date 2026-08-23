@@ -187,8 +187,94 @@ npm run verify:crm       # Phase-1 end-to-end against your Atlas cluster
 edit survives with no duplicates, and merges a second category — cleaning up
 after itself. Point it at a real file with `node scripts/verify-crm.mjs <file.csv>`.
 
+## Background worker (Phase 2)
+
+The worker collects leads on autopilot: each tick it runs the **stalest enabled
+campaign** — find (Google Places) → audit (fast DIY checks, no PageSpeed) →
+import canonical records straight into MongoDB (deduped by Place ID, outreach
+state preserved). It is **one-shot by design**: it does one campaign and exits,
+so the *schedule* lives outside the code (cron/launchd) and the same binary drops
+onto a hosted cron later with zero changes.
+
+### Campaigns
+
+Campaigns are the rotating `{city, category}` search space. Manage them from the
+CRM CLI (they're stored in Mongo, no code edits needed):
+
+```bash
+node src/crm-cli.js campaign add --city "Brampton, ON" --category roofers
+node src/crm-cli.js campaign add --city "Brampton, ON" --category plumbers --cadence 14 --max-pages 5
+node src/crm-cli.js campaign list                 # enabled state, last run, progress
+node src/crm-cli.js campaign disable roofers-in-brampton-on
+node src/crm-cli.js campaign enable  roofers-in-brampton-on
+```
+
+`--cadence <days>` (default 14) is how long before a campaign is due again;
+`--max-pages <n>` (default 5, 20 results/page) caps how much it fetches per run.
+
+### Run one tick
+
+```bash
+npm run worker        # or: node src/worker.js
+```
+
+Each run picks the oldest due campaign, imports new/updated leads, increments the
+month's Places usage by the **actual** requests spent, and updates the campaign's
+`lastRunAt` + progress aggregates (`progress`, `totalLeads`, `priorityLeads`,
+`averageScore`). If nothing is due, or the monthly cap is hit, it logs why and
+exits without calling Places.
+
+### Monthly cap & cadence
+
+Places Text Search bills **per request** (~5,000 free Pro calls/month, 20 results
+each). `MONTHLY_PLACES_CAP` in `.env` (default `4500`) is a hard guard: once the
+month's usage reaches it, the worker refuses to start a run. A **few ticks a day**
+(e.g. every 4–6 hours) rotating across a handful of campaigns keeps you well
+inside the free tier — at `--max-pages 5` that's ≤5 requests per tick.
+
+### Scheduling (cron)
+
+Ready-to-edit examples live in [`deploy/`](deploy/). The wrapper
+[`deploy/run-worker.sh`](deploy/run-worker.sh) resolves the repo path, puts
+`node` on `PATH` (cron/launchd start with a bare environment), and runs one tick;
+the worker itself loads `.env`, so **no secrets go in the crontab**.
+
+```bash
+chmod +x deploy/run-worker.sh
+crontab -e
+# add (replace the path with your repo's `pwd`):
+0 */4 * * * /ABS/PATH/local-lead-finder/deploy/run-worker.sh >> /ABS/PATH/local-lead-finder/worker.log 2>&1
+```
+
+See [`deploy/crontab.example`](deploy/crontab.example) for more cadences.
+
+### Scheduling (macOS launchd)
+
+Use [`deploy/com.local-lead-finder.worker.plist`](deploy/com.local-lead-finder.worker.plist)
+(runs every 4 hours via `StartInterval`):
+
+```bash
+# edit the ABSOLUTE paths inside the plist first, then:
+cp deploy/com.local-lead-finder.worker.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.local-lead-finder.worker.plist
+# to stop:
+launchctl unload ~/Library/LaunchAgents/com.local-lead-finder.worker.plist
+```
+
+### Deploying to Render later
+
+The worker is env-only and one-shot, so no rewrite is needed: create a **Render
+Cron Job** (or background worker) that runs `node src/worker.js` on your cadence,
+and set the same env vars in Render's dashboard (`MONGODB_URI`,
+`GOOGLE_PLACES_API_KEY`, `MONGODB_DB`, `MONTHLY_PLACES_CAP`).
+
+> **⚠️ Do not publicly deploy the dashboard yet.** The HTTP server binds to
+> loopback and rejects non-local origins, but it has **no authentication** — it's
+> safe on `localhost` only. Add auth before exposing it (or the worker's Render
+> deploy) to the internet.
+
 ## Roadmap
 
-- Background worker: scheduled find → audit → import, quota-aware (Phase 2).
+- ~~Background worker: scheduled find → audit → import, quota-aware (Phase 2).~~ ✓
 - Outreach prep: money-framed pitch, phone script, email draft, and a mockup of
   the prospect's new site (Phase 3). Human-delivered — no auto-send.

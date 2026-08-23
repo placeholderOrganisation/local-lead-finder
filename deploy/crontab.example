@@ -1,0 +1,16 @@
+# Local Lead Finder — cron example (Linux / macOS).
+#
+# Install with:  crontab -e   (then paste a line below and save)
+# List current:  crontab -l
+#
+# Replace /ABSOLUTE/PATH/TO/local-lead-finder with your repo path (run `pwd`).
+# The wrapper resolves node + loads .env, so no secrets belong in the crontab.
+
+# Every 4 hours, on the hour — one worker tick, appended to a log.
+0 */4 * * * /ABSOLUTE/PATH/TO/local-lead-finder/deploy/run-worker.sh >> /ABSOLUTE/PATH/TO/local-lead-finder/worker.log 2>&1
+
+# --- other cadences (pick ONE; a few times/day keeps you well under the cap) ---
+# Twice a day (09:00 and 18:00):
+# 0 9,18 * * * /ABSOLUTE/PATH/TO/local-lead-finder/deploy/run-worker.sh >> /ABSOLUTE/PATH/TO/local-lead-finder/worker.log 2>&1
+# Every 6 hours:
+# 0 */6 * * * /ABSOLUTE/PATH/TO/local-lead-finder/deploy/run-worker.sh >> /ABSOLUTE/PATH/TO/local-lead-finder/worker.log 2>&1

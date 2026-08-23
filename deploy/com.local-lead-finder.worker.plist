@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS launchd example — runs one worker tick every 4 hours.
+
+  Setup:
+    1. Replace /ABSOLUTE/PATH/TO/local-lead-finder below with your repo path
+       (run `pwd` in the repo to get it).
+    2. cp deploy/com.local-lead-finder.worker.plist ~/Library/LaunchAgents/
+    3. launchctl load ~/Library/LaunchAgents/com.local-lead-finder.worker.plist
+       (to stop: launchctl unload ~/Library/LaunchAgents/com.local-lead-finder.worker.plist)
+
+  The wrapper loads .env, so no secrets belong in this file.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.local-lead-finder.worker</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/ABSOLUTE/PATH/TO/local-lead-finder/deploy/run-worker.sh</string>
+  </array>
+
+  <!-- Every 4 hours (in seconds). A few ticks/day stays well inside the free tier. -->
+  <key>StartInterval</key>
+  <integer>14400</integer>
+
+  <!-- Don't fire immediately when (re)loaded; wait for the first interval. -->
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/ABSOLUTE/PATH/TO/local-lead-finder/worker.log</string>
+  <key>StandardErrorPath</key>
+  <string>/ABSOLUTE/PATH/TO/local-lead-finder/worker.log</string>
+</dict>
+</plist>

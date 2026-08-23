@@ -3,3 +3,4 @@ node_modules/
 *.csv
 !sample.csv
 .DS_Store
+worker.log
