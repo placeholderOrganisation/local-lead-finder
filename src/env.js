@@ -73,19 +73,19 @@ export function getMonthlyPlacesCap({ fallback = 4500 } = {}) {
 }
 
 /**
- * Resolve the Anthropic API key, loading .env first.
+ * Resolve the OpenAI API key, loading .env first.
  * @param {{required?: boolean}} [opts]
  * @returns {string|undefined}
  */
-export function getAnthropicKey({ required = false } = {}) {
+export function getOpenAIKey({ required = false } = {}) {
   loadEnv();
-  const key = process.env.ANTHROPIC_API_KEY;
-  const missing = !key || key === "your-anthropic-key-here";
+  const key = process.env.OPENAI_API_KEY;
+  const missing = !key || key === "your-openai-key-here";
   if (missing && required) {
     throw new Error(
-      "No Anthropic API key found.\n" +
+      "No OpenAI API key found.\n" +
         "  1. cp .env.example .env\n" +
-        "  2. paste your key into .env as ANTHROPIC_API_KEY=...\n" +
+        "  2. paste your key into .env as OPENAI_API_KEY=...\n" +
         "Then re-run."
     );
   }
