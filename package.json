@@ -10,7 +10,9 @@
     "start": "node src/index.js",
     "dashboard": "node src/server.js",
     "worker": "node src/worker.js",
-    "crm": "node src/crm-cli.js"
+    "crm": "node src/crm-cli.js",
+    "test": "node --test",
+    "verify:crm": "node scripts/verify-crm.mjs"
   },
   "engines": {
     "node": ">=18"

@@ -125,7 +125,70 @@ Writes a single `leads-<slug>.csv` with every lead (find + audit merged), prints
 the HOT no-website leads to call first, and the audit summary. Accepts the same
 `--tiers`, `--pagespeed`, `--concurrency`, and `--max-pages` flags.
 
+## CRM (Phase 1)
+
+Once you've generated CSVs, bring them into a master **MongoDB** collection and
+work the leads from a local dashboard. The master collection is deduped by Place
+ID, so you can re-run the finder any time — **facts refresh, but your status,
+notes, and dates are never overwritten.**
+
+### Setup
+
+1. Create a free MongoDB Atlas cluster ([cloud.mongodb.com](https://cloud.mongodb.com/)),
+   add your IP to the access list, and copy the driver connection string.
+2. Add it to `.env` (never commit `.env` — it's gitignored):
+   ```bash
+   MONGODB_URI=mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/?appName=Cluster0
+   MONGODB_DB=leadfinder        # optional (default: leadfinder)
+   PORT=4000                    # optional (dashboard port)
+   ```
+
+Still zero runtime dependencies to configure beyond the `mongodb` driver already
+in `package.json` (`npm install` once).
+
+### CLI
+
+```bash
+# Import one or more category CSVs (upsert; preserves outreach state)
+node src/crm-cli.js import leads-accountants-in-brampton-on.csv
+npm run crm -- import leads-dentists-in-brampton-on.csv leads-roofers-*.csv
+
+node src/crm-cli.js stats     # totals, per-status counts, due/overdue
+node src/crm-cli.js due       # leads whose follow-up is due today or earlier
+
+# Export a filtered view — CSV for spreadsheets, vCard for phone contacts
+node src/crm-cli.js export hot-leads.csv --tier HOT
+node src/crm-cli.js export new-leads.vcf --vcard --status New
+```
+
+Re-importing the same CSV reports `0 inserted / N updated` and leaves every
+lead's `status`, `notes`, and dates untouched — that's the core CRM guarantee.
+
+### Dashboard
+
+```bash
+npm run dashboard        # serves http://127.0.0.1:4000
+```
+
+A single self-contained page (no build step, no external requests, dark-mode
+aware): stat tiles, a sortable/filterable lead table, and a drawer to click-to-
+call, copy the pitch, and edit status/notes/follow-up dates with **autosave**.
+The server binds to loopback only and rejects mutating requests from non-local
+origins (CSRF / DNS-rebinding guard).
+
+### Verify
+
+```bash
+npm test                 # pure unit tests (lead scoring) — offline
+npm run verify:crm       # Phase-1 end-to-end against your Atlas cluster
+```
+
+`verify:crm` imports a sample category, edits a lead, re-imports to prove the
+edit survives with no duplicates, and merges a second category — cleaning up
+after itself. Point it at a real file with `node scripts/verify-crm.mjs <file.csv>`.
+
 ## Roadmap
 
-- Auto-generate a mockup/demo homepage for a top lead (the closer).
-- Dedupe across searches; multi-category / multi-city batch runs.
+- Background worker: scheduled find → audit → import, quota-aware (Phase 2).
+- Outreach prep: money-framed pitch, phone script, email draft, and a mockup of
+  the prospect's new site (Phase 3). Human-delivered — no auto-send.
