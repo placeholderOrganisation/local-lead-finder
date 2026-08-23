@@ -61,6 +61,18 @@ export function getMongoUri({ required = false } = {}) {
 }
 
 /**
+ * Resolve the worker's monthly Places-request cap, loading .env first.
+ * The worker refuses to start a run once the month's usage reaches this.
+ * @param {{fallback?: number}} [opts]  value to use when unset/invalid.
+ * @returns {number}
+ */
+export function getMonthlyPlacesCap({ fallback = 4500 } = {}) {
+  loadEnv();
+  const n = Number(process.env.MONTHLY_PLACES_CAP);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+/**
  * Resolve the Anthropic API key, loading .env first.
  * @param {{required?: boolean}} [opts]
  * @returns {string|undefined}

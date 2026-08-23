@@ -179,6 +179,63 @@ export async function updateLead(placeId, patch = {}) {
   return res && res.value !== undefined ? res.value : res;
 }
 
+// ── Places usage tracking + monthly cap (#29) ───────────────────────────────
+// The worker bills the Places API per request (~5,000 free Pro calls/mo). We
+// count ACTUAL pages fetched (1 request per page) into a per-month `usage` doc
+// so a run can be refused once the month reaches MONTHLY_PLACES_CAP (#19).
+
+/** Format a Date as its "YYYY-MM" usage key (local time). */
+function monthKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+/**
+ * Running Places-request total for a month.
+ * @param {Date} [date] any date within the month (default now).
+ * @returns {Promise<{month:string, placesRequests:number}>}
+ */
+export async function getMonthUsage(date = new Date()) {
+  const usage = await getColl("usage");
+  const month = monthKey(date);
+  const doc = await usage.findOne({ _id: month });
+  return { month, placesRequests: doc?.placesRequests ?? 0 };
+}
+
+/**
+ * Add `n` Places requests to the current month's counter (upsert).
+ * No-op for non-positive counts so a zero-page run never touches the doc.
+ * @param {number} n  requests (pages) actually fetched.
+ * @param {Date} [date] any date within the month (default now).
+ * @returns {Promise<{month:string, placesRequests:number}>} the new total.
+ */
+export async function addPlacesRequests(n, date = new Date()) {
+  const count = Math.trunc(Number(n) || 0);
+  if (count <= 0) return getMonthUsage(date);
+
+  const usage = await getColl("usage");
+  const month = monthKey(date);
+  const now = new Date();
+  await usage.updateOne(
+    { _id: month },
+    { $inc: { placesRequests: count }, $set: { updatedAt: now }, $setOnInsert: { createdAt: now } },
+    { upsert: true }
+  );
+  return getMonthUsage(date);
+}
+
+/**
+ * Whether this month's Places usage is still below `cap` (gates at the boundary:
+ * once usage === cap it returns false, so the worker stops before exceeding it).
+ * @param {number} cap
+ * @returns {Promise<boolean>}
+ */
+export async function underPlacesCap(cap) {
+  const { placesRequests } = await getMonthUsage();
+  return placesRequests < Number(cap);
+}
+
 // ── helpers ─────────────────────────────────────────────────────────────────
 function todayBounds() {
   const start = new Date();

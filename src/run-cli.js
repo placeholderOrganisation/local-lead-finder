@@ -43,7 +43,7 @@ async function run({ args, apiKey, query }) {
 
   // --- Stage 1: find ---
   console.log(`\n[1/2] Finding businesses: ${query}`);
-  const places = await searchBusinesses({
+  const { places } = await searchBusinesses({
     apiKey,
     query,
     maxPages: args.maxPages ?? 5,

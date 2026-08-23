@@ -29,7 +29,9 @@ const FIELD_MASK = [
  * @param {string}  opts.query     e.g. "roofers in Austin, TX".
  * @param {number} [opts.maxPages] Safety cap on paged requests (default 5 -> up to 100 results).
  * @param {(msg:string)=>void} [opts.log] Optional progress logger.
- * @returns {Promise<Array<object>>} Raw place objects from the API.
+ * @returns {Promise<{places:Array<object>, requests:number}>} Raw place objects
+ *   plus the number of billable requests made (1 per page fetched) so callers
+ *   (e.g. the worker) can meter real Places usage against the monthly cap (#29).
  */
 export async function searchBusinesses({ apiKey, query, maxPages = 5, log = () => {} }) {
   if (!apiKey) throw new Error("Missing API key.");
@@ -69,7 +71,8 @@ export async function searchBusinesses({ apiKey, query, maxPages = 5, log = () =
     if (pageToken && page < maxPages) await sleep(2000);
   } while (pageToken && page < maxPages);
 
-  return places;
+  // `page` counted each request we actually sent — that's the billable count.
+  return { places, requests: page };
 }
 
 async function safeError(res) {
