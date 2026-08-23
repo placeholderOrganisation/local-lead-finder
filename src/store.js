@@ -7,6 +7,75 @@ import { getColl } from "./db.js";
 /** Canonical pipeline stages (single source of truth for status ordering). */
 export const STAGES = ["New", "Contacted", "Replied", "Meeting", "Won", "Lost"];
 
+// Canonical business/audit facts refreshed on every import. Excludes CRM/outreach
+// state (status, notes, dates, assets, …) which importRecords must NEVER overwrite.
+const FACT_KEYS = [
+  "business", "phone", "website", "category", "address", "mapsUrl", "rating",
+  "reviews", "tier", "priority", "issues", "pitch", "https", "mobile", "loadSec",
+  "sizeKb", "copyright", "psiMobile", "psiSeo", "lcp", "email", "socials",
+  "needsVerification",
+];
+
+/**
+ * Upsert canonical lead records keyed by Place ID. Refreshes facts while
+ * preserving outreach state ($setOnInsert), so re-running the finder never
+ * clobbers your notes/status/dates. This is the core CRM guarantee.
+ *
+ * @param {Array<object>} records canonical records (from csvToRecord / worker).
+ * @param {{searchLabel?:string}} [opts]
+ * @returns {Promise<{inserted:number,updated:number}>}
+ */
+export async function importRecords(records, { searchLabel } = {}) {
+  const leads = await getColl("leads");
+  let inserted = 0;
+  let updated = 0;
+
+  for (const rec of records) {
+    const placeId = rec?.placeId;
+    if (!placeId) continue; // no key, can't dedupe — skip
+
+    const now = new Date();
+    const facts = {};
+    for (const k of FACT_KEYS) facts[k] = rec[k] ?? null;
+
+    const set = { ...facts, placeId, factsUpdatedAt: now, updatedAt: now };
+
+    // Snapshot the prior issues when incoming facts differ from what's stored.
+    const existing = await leads.findOne(
+      { _id: placeId },
+      { projection: Object.fromEntries(FACT_KEYS.map((k) => [k, 1])) }
+    );
+    if (existing && factsSignature(existing) !== factsSignature(facts)) {
+      set.priorIssues = existing.issues ?? [];
+    }
+
+    const update = {
+      $set: set,
+      $setOnInsert: {
+        status: "New",
+        notes: "",
+        contactedDate: null,
+        contactChannel: null,
+        followUpDate: null,
+        createdAt: now,
+        auditCount: 0,
+        statusHistory: [],
+      },
+    };
+    if (searchLabel) update.$addToSet = { searches: searchLabel };
+
+    const res = await leads.updateOne({ _id: placeId }, update, { upsert: true });
+    if (res.upsertedCount) inserted++;
+    else updated++;
+  }
+
+  return { inserted, updated };
+}
+
+function factsSignature(obj) {
+  return JSON.stringify(FACT_KEYS.map((k) => obj?.[k] ?? null));
+}
+
 // Human edits may only touch these fields. Everything else in a patch is ignored.
 const UPDATE_ALLOW = [
   "status",
