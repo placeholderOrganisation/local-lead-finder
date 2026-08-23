@@ -333,6 +333,70 @@ export async function pickStalestCampaign(now = new Date()) {
   return null;
 }
 
+/** Mark a campaign as actively running (progress UX only — not a success signal). */
+export async function markCampaignRunning(id) {
+  const campaigns = await getColl("campaigns");
+  await campaigns.updateOne({ _id: id }, { $set: { status: "running", updatedAt: new Date() } });
+}
+
+/** Mark a run as failed. Deliberately does NOT touch lastRunAt/foundTotal. */
+export async function markCampaignError(id) {
+  const campaigns = await getColl("campaigns");
+  await campaigns.updateOne({ _id: id }, { $set: { status: "error", updatedAt: new Date() } });
+}
+
+/**
+ * Record a SUCCESSFUL worker run: advance lastRunAt, bump foundTotal, and
+ * refresh the progress aggregates from the campaign's own leads (those tagged
+ * with `searchLabel`). `averageScore` is the mean lead `priority` (1–5) — the
+ * quality signal persisted on the canonical record; `priorityLeads` counts the
+ * HIGH-priority (>=4) ones. Only the worker (#30) calls this, on success.
+ * @param {string} id           campaign _id
+ * @param {string} searchLabel  "<category> in <city>" tag carried on each lead
+ * @param {{found?:number}} [run]
+ * @returns {Promise<object|null>} the updated campaign
+ */
+export async function recordCampaignRun(id, searchLabel, { found = 0 } = {}) {
+  const campaigns = await getColl("campaigns");
+  const leads = await getColl("leads");
+
+  const [agg] = await leads
+    .aggregate([
+      { $match: { searches: searchLabel } },
+      {
+        $group: {
+          _id: null,
+          totalLeads: { $sum: 1 },
+          priorityLeads: { $sum: { $cond: [{ $gte: ["$priority", 4] }, 1, 0] } },
+          avgPriority: { $avg: "$priority" },
+        },
+      },
+    ])
+    .toArray();
+
+  const totalLeads = agg?.totalLeads ?? 0;
+  const priorityLeads = agg?.priorityLeads ?? 0;
+  const averageScore = agg?.avgPriority != null ? Math.round(agg.avgPriority * 10) / 10 : 0;
+
+  const now = new Date();
+  await campaigns.updateOne(
+    { _id: id },
+    {
+      $set: {
+        lastRunAt: now,
+        status: "done",
+        progress: 100,
+        totalLeads,
+        priorityLeads,
+        averageScore,
+        updatedAt: now,
+      },
+      $inc: { foundTotal: Math.max(0, Math.trunc(Number(found) || 0)) },
+    }
+  );
+  return campaigns.findOne({ _id: id });
+}
+
 // ── helpers ─────────────────────────────────────────────────────────────────
 function todayBounds() {
   const start = new Date();
