@@ -8,7 +8,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { loadEnv } from "./env.js";
-import { listLeads, stats, updateLead, STAGES } from "./store.js";
+import { listLeads, stats, updateLead, getLead, STAGES } from "./store.js";
 import { ensureIndexes, close } from "./db.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -30,6 +30,17 @@ async function handle(req, res) {
     if (route === "GET /api/leads") {
       const [leads, s] = await Promise.all([listLeads(filterFromQuery(url.searchParams)), stats()]);
       return sendJson(res, 200, { leads, stats: s, stages: STAGES });
+    }
+
+    const mockupMatch = url.pathname.match(/^\/mockup\/([^/]+)$/);
+    if (req.method === "GET" && mockupMatch) {
+      const placeId = decodeURIComponent(mockupMatch[1]);
+      const lead = await getLead(placeId);
+      const html = lead?.mockup?.html;
+      if (!html) return sendJson(res, 404, { error: "mockup not found" });
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(html);
+      return;
     }
 
     // ── mutating routes (CSRF/DNS-rebinding guarded) ──────────────────────────

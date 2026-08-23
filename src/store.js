@@ -179,6 +179,39 @@ export async function updateLead(placeId, patch = {}) {
   return res && res.value !== undefined ? res.value : res;
 }
 
+/** Fetch one lead by Place ID. */
+export async function getLead(placeId) {
+  const leads = await getColl("leads");
+  return leads.findOne({ _id: placeId });
+}
+
+/**
+ * Persist a generated mockup on the lead. Does not touch CRM/outreach state.
+ * @param {string} placeId
+ * @param {{html:string, generatedAt:string, model?:string}} mockup
+ * @returns {Promise<object|null>}
+ */
+export async function saveMockup(placeId, mockup) {
+  if (!placeId || !mockup?.html) return null;
+  const leads = await getColl("leads");
+  const res = await leads.findOneAndUpdate(
+    { _id: placeId },
+    {
+      $set: {
+        mockup: {
+          html: mockup.html,
+          generatedAt: mockup.generatedAt || new Date().toISOString(),
+          publicUrl: null,
+          model: mockup.model || null,
+        },
+        updatedAt: new Date(),
+      },
+    },
+    { returnDocument: "after" }
+  );
+  return res && res.value !== undefined ? res.value : res;
+}
+
 // ── Places usage tracking + monthly cap (#29) ───────────────────────────────
 // The worker bills the Places API per request (~5,000 free Pro calls/mo). We
 // count ACTUAL pages fetched (1 request per page) into a per-month `usage` doc
