@@ -212,6 +212,23 @@ export async function saveMockup(placeId, mockup) {
   return res && res.value !== undefined ? res.value : res;
 }
 
+/**
+ * Persist on-demand Lighthouse scores (#38). Never written by the worker.
+ * @param {string} placeId
+ * @param {object} scores
+ * @returns {Promise<object|null>}
+ */
+export async function saveLighthouse(placeId, scores) {
+  if (!placeId || !scores) return null;
+  const leads = await getColl("leads");
+  const res = await leads.findOneAndUpdate(
+    { _id: placeId },
+    { $set: { lighthouse: { ...scores, at: scores.at || new Date().toISOString() }, updatedAt: new Date() } },
+    { returnDocument: "after" }
+  );
+  return res && res.value !== undefined ? res.value : res;
+}
+
 // ── Places usage tracking + monthly cap (#29) ───────────────────────────────
 // The worker bills the Places API per request (~5,000 free Pro calls/mo). We
 // count ACTUAL pages fetched (1 request per page) into a per-month `usage` doc

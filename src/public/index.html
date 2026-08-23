@@ -143,6 +143,10 @@
   <div class="field"><label for="dNotes">Notes</label><textarea id="dNotes" rows="4" placeholder="Call outcomes, next steps…"></textarea></div>
 
   <div class="section"><h3>Issues</h3><ul id="dIssues"></ul></div>
+  <div class="section">
+    <h3>Lighthouse <button class="mini" id="dDeep" type="button">Deep audit</button></h3>
+    <div id="dLh" class="st">Not run yet — on-demand only (slow, not in the worker).</div>
+  </div>
   <div class="section"><h3>Pitch <button class="mini" id="dCopy">Copy</button></h3><div class="pitch" id="dPitch"></div></div>
   <div class="section" id="dFactorsWrap"><h3>Score factors</h3><ul id="dFactors"></ul></div>
 </aside>
@@ -274,6 +278,7 @@ function openDrawer(id){
   const issues = Array.isArray(l.issues) ? l.issues : [];
   $("#dIssues").innerHTML = issues.length ? issues.map(i => `<li>${esc(i)}</li>`).join("") : `<li class="st">No audit issues recorded.</li>`;
   $("#dPitch").textContent = l.pitch || "—";
+  renderLh(l);
 
   const factors = Array.isArray(l.factors) ? l.factors : [];
   $("#dFactorsWrap").style.display = factors.length ? "" : "none";
@@ -286,6 +291,52 @@ function closeDrawer(){
   state.current = null;
   $("#overlay").classList.add("hidden");
   $("#drawer").classList.add("hidden");
+}
+
+function renderLh(l){
+  const lh = l?.lighthouse;
+  const el = $("#dLh");
+  const btn = $("#dDeep");
+  btn.disabled = !l?.website;
+  btn.title = l?.website ? "Runs real Lighthouse on this one site (slow)" : "No website to audit";
+  if (!lh) { el.textContent = "Not run yet — on-demand only (slow, not in the worker)."; return; }
+  const bits = [
+    lh.performance != null ? `Perf ${lh.performance}` : null,
+    lh.seo != null ? `SEO ${lh.seo}` : null,
+    lh.accessibility != null ? `A11y ${lh.accessibility}` : null,
+    lh.bestPractices != null ? `BP ${lh.bestPractices}` : null,
+    lh.lcpSec != null ? `LCP ${lh.lcpSec}s` : null,
+    lh.source ? `(${lh.source})` : null,
+  ].filter(Boolean);
+  el.textContent = bits.join(" · ") || "Saved, but no scores.";
+}
+
+async function runDeepAudit(){
+  const l = state.current;
+  if (!l?.website) { toast("No website", true); return; }
+  const btn = $("#dDeep");
+  btn.disabled = true;
+  $("#dLh").textContent = "Running Lighthouse… this can take a minute.";
+  try {
+    const res = await fetch("/api/deepaudit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ placeId: l._id }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "deep audit failed");
+    const lh = data.lighthouse;
+    const i = state.leads.findIndex(x => x._id === l._id);
+    if (i >= 0) state.leads[i].lighthouse = lh;
+    if (state.current && state.current._id === l._id) state.current.lighthouse = lh;
+    renderLh(state.current);
+    toast("Deep audit saved");
+  } catch (e) {
+    $("#dLh").textContent = "Deep audit failed: " + (e.message || e);
+    toast("Deep audit failed", true);
+  } finally {
+    btn.disabled = !state.current?.website;
+  }
 }
 
 // ── autosave ────────────────────────────────────────────────────────────────
@@ -349,6 +400,7 @@ $("#dCopy").addEventListener("click", async () => {
   try{ await navigator.clipboard.writeText(p); toast("Pitch copied"); }
   catch{ toast("Copy failed", true); }
 });
+$("#dDeep").addEventListener("click", runDeepAudit);
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
 
 load().catch(e => { document.body.insertAdjacentHTML("beforeend", `<div class="empty">Failed to load: ${esc(e.message)}</div>`); });

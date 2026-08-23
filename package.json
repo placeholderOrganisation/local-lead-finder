@@ -15,11 +15,12 @@
     "verify:crm": "node scripts/verify-crm.mjs"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.18"
   },
   "license": "MIT",
   "dependencies": {
     "mongodb": "^7.5.0",
-    "openai": "^5.23.2"
+    "openai": "^5.23.2",
+    "unlighthouse": "^0.18.0"
   }
 }

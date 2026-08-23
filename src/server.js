@@ -8,8 +8,9 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { loadEnv } from "./env.js";
-import { listLeads, stats, updateLead, getLead, STAGES } from "./store.js";
+import { listLeads, stats, updateLead, getLead, saveLighthouse, STAGES } from "./store.js";
 import { ensureIndexes, close } from "./db.js";
+import { deepAudit } from "./deepaudit.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(HERE, "public");
@@ -51,6 +52,19 @@ async function handle(req, res) {
       const doc = await updateLead(body.placeId, body.patch || {});
       if (!doc) return sendJson(res, 404, { error: "lead not found" });
       return sendJson(res, 200, doc);
+    }
+
+    if (route === "POST /api/deepaudit") {
+      if (!isLocalRequest(req)) return sendJson(res, 403, { error: "forbidden origin" });
+      req.setTimeout(180_000);
+      const body = await readJson(req);
+      if (!body || !body.placeId) return sendJson(res, 400, { error: "placeId required" });
+      const lead = await getLead(body.placeId);
+      if (!lead) return sendJson(res, 404, { error: "lead not found" });
+      if (!lead.website) return sendJson(res, 400, { error: "lead has no website" });
+      const scores = await deepAudit(lead.website);
+      const doc = await saveLighthouse(body.placeId, scores);
+      return sendJson(res, 200, { lighthouse: scores, lead: doc });
     }
 
     // Future mutating routes slot in here (e.g. POST /api/prepare, POST /api/mockup,
