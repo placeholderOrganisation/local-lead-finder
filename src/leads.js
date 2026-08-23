@@ -29,6 +29,8 @@ export function qualify(place) {
     reason = "has a site — check quality (mobile, speed, freshness)";
   }
 
+  const { bayesRating, score, priority, factors } = scoreLead({ rating, reviews, website, operational });
+
   return {
     name: place.displayName?.text ?? "",
     tier,
@@ -41,7 +43,91 @@ export function qualify(place) {
     address: place.formattedAddress ?? "",
     mapsUrl: place.googleMapsUri ?? "",
     placeId: place.id ?? "",
+    // Bayesian scoring (see scoreLead) — web-selling-correct, inverted website signal.
+    bayesRating,
+    score,
+    priority,
+    factors,
   };
+}
+
+// ── Lead scoring (Bayesian, web-selling-correct) ────────────────────────────
+// Adapted from Prospex's (MIT) lead-intelligence Bayesian rating, with the
+// website signal INVERTED: for a web-dev agency, no/weak site is the buying
+// signal, so it must RAISE priority (not lower it). See docs/prior-art.md.
+
+export const SCORING = { PRIOR: 4.0, WEIGHT: 25 };
+
+/**
+ * Bayesian-adjusted rating: pull low-review ratings toward a 4.0★ prior so a
+ * 5★/1-review can't outrank a 4.6★/800-review business.
+ *   adj = (W*PRIOR + n*rating) / (W + n)
+ * @param {number|null} rating  raw star rating (null when unrated).
+ * @param {number} reviews      review count.
+ * @returns {number} adjusted rating.
+ */
+export function bayesianRating(rating, reviews) {
+  const { PRIOR, WEIGHT } = SCORING;
+  const r = typeof rating === "number" && rating > 0 ? rating : PRIOR;
+  const n = reviews == null ? 1 : reviews; // reviewCount ?? 1
+  return (WEIGHT * PRIOR + n * r) / (WEIGHT + n);
+}
+
+/**
+ * Blend the buying signals into a numeric score + 1–5 priority + explainable
+ * `factors` (surfaced in the CRM for transparency).
+ *
+ * @param {{rating:number|null, reviews?:number, website?:string, operational?:boolean}} lead
+ * @returns {{bayesRating:number, score:number, priority:number, factors:Array<{label:string,points:number}>}}
+ */
+export function scoreLead({ rating, reviews = 0, website = "", operational = true }) {
+  const adj = bayesianRating(rating, reviews);
+
+  if (!operational) {
+    return { bayesRating: adj, score: 0, priority: 0, factors: [{ label: "not operational", points: 0 }] };
+  }
+
+  const factors = [];
+
+  // Website signal — INVERTED for web-selling: no site = hottest prospect.
+  const site = websiteClass(website);
+  const sitePoints = site === "none" ? 40 : site === "weak" ? 25 : 5;
+  factors.push({ label: siteLabel(site), points: sitePoints });
+
+  // Adjusted-rating quality — a reputable business worth selling to.
+  const ratingPoints = round1(Math.max(0, (adj - 3.0) * 10));
+  factors.push({ label: `adjusted rating ${adj.toFixed(2)}★`, points: ratingPoints });
+
+  // Establishment — review volume signals a real, reachable business with budget.
+  const estPoints = round1((Math.min(reviews, 200) / 200) * 20);
+  factors.push({ label: `${reviews} review${reviews === 1 ? "" : "s"}`, points: estPoints });
+
+  const score = round1(sitePoints + ratingPoints + estPoints);
+  return { bayesRating: adj, score, priority: priorityFromScore(score), factors };
+}
+
+function websiteClass(website) {
+  if (!website) return "none";
+  if (isSocialOrBuilder(website)) return "weak";
+  return "real";
+}
+
+function siteLabel(site) {
+  if (site === "none") return "no website (easiest, highest-value sell)";
+  if (site === "weak") return "social/builder-only site (needs a real site)";
+  return "has a real site (redesign/audit angle)";
+}
+
+function priorityFromScore(score) {
+  if (score >= 55) return 5;
+  if (score >= 45) return 4;
+  if (score >= 30) return 3;
+  if (score >= 15) return 2;
+  return 1;
+}
+
+function round1(n) {
+  return Math.round(n * 10) / 10;
 }
 
 // A Facebook/Instagram/Linktree/site-builder URL usually means "no real website."
@@ -77,13 +163,12 @@ function hostOf(url) {
   }
 }
 
-// Rank order for sorting the CSV so the best leads sit at the top.
-const TIER_RANK = { HOT: 0, WARM: 1, AUDIT: 2, SKIP: 3 };
-
+// Sort best-first by the blended Bayesian score; reviews break ties.
+// No-website (HOT) leads float to the top; non-operational (SKIP) sink to 0.
 export function sortLeads(leads) {
   return [...leads].sort((a, b) => {
-    const t = (TIER_RANK[a.tier] ?? 9) - (TIER_RANK[b.tier] ?? 9);
-    if (t !== 0) return t;
+    const s = (b.score ?? -1) - (a.score ?? -1);
+    if (s !== 0) return s;
     return (b.reviews ?? 0) - (a.reviews ?? 0); // more reviews = more real
   });
 }
