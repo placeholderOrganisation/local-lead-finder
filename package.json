@@ -12,7 +12,8 @@
     "worker": "node src/worker.js",
     "crm": "node src/crm-cli.js",
     "test": "node --test",
-    "verify:crm": "node scripts/verify-crm.mjs"
+    "verify:crm": "node scripts/verify-crm.mjs",
+    "verify:outreach": "node scripts/verify-outreach.mjs"
   },
   "engines": {
     "node": ">=22.18"

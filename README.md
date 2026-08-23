@@ -273,8 +273,71 @@ and set the same env vars in Render's dashboard (`MONGODB_URI`,
 > safe on `localhost` only. Add auth before exposing it (or the worker's Render
 > deploy) to the internet.
 
+## Outreach prep (Phase 3)
+
+Drafts stay drafts: the app **never sends** email, texts, or DMs. You prepare
+assets in the dashboard, copy them, and deliver through your own channel
+(phone, email, Instagram, in person).
+
+### Config
+
+Add these to `.env` (never commit `.env`):
+
+```bash
+OPENAI_API_KEY=sk-...          # required for live copy + mockups
+OPENAI_MODEL=gpt-4o-mini       # default if unset
+SENDER_NAME=Your Name          # signed on email / scripts
+LOCAL_AREA="Brampton, ON"      # the area you serve
+PORTFOLIO_URL=https://...      # past work, injected into drafts
+CALENDAR_URL=                  # optional booking link
+```
+
+`npm install` once so `openai` (and optional `unlighthouse`) are available.
+Without `OPENAI_API_KEY`, compose/mockup fall back to deterministic templates
+so the dashboard still loads.
+
+### Prepare-outreach flow
+
+```bash
+npm run dashboard        # http://127.0.0.1:4000
+```
+
+1. Open a lead in the drawer.
+2. **Prepare outreach** — generates a money-framed `moneyPitch`, an email
+   (subject + body), and a phone script. Copy buttons put them on the clipboard.
+   Angles differ by segment: no-website leads get a legitimacy / “call first”
+   pitch; has-site leads get a lost-customers pitch. A 403/500/unreachable site
+   is flagged `needsVerification`: the drawer shows a **verify first** banner
+   and the copy **must not** claim the site is down.
+3. **Generate mockup** — a self-contained HTML homepage (inline CSS, no
+   external requests) served at `/mockup/:placeId`. Preview opens in a new tab.
+4. Pick a **contact channel** (phone / email / DM / in person) and mark
+   **Contacted**. Nothing is sent for you.
+
+On-demand **Deep audit** (real Lighthouse via unlighthouse) is a separate
+button on one lead at a time. It is **never** part of the worker or bulk
+import — those stay on the fast DIY fetch audit.
+
+### Mockup hosting caveat
+
+The generated HTML is stored on the lead (`lead.mockup.html`) and previewed
+locally. `lead.mockup.publicUrl` stays **`null` until you host it yourself**
+(drop the HTML on Netlify/Cloudflare Pages/your own domain) and paste that
+URL back if you want to include a live link in outreach. The app does not
+publish mockups.
+
+### Verify
+
+```bash
+npm test                      # unit tests (scoring, compose mock, mockup isolation)
+npm run verify:outreach       # live OpenAI + Mongo: no-website / has-site / 403
+```
+
+`verify:outreach` refuses to pass without `OPENAI_API_KEY` and a populated
+leads collection.
+
 ## Roadmap
 
 - ~~Background worker: scheduled find → audit → import, quota-aware (Phase 2).~~ ✓
-- Outreach prep: money-framed pitch, phone script, email draft, and a mockup of
-  the prospect's new site (Phase 3). Human-delivered — no auto-send.
+- ~~Outreach prep: money-framed pitch, phone script, email draft, and a mockup of
+  the prospect's new site (Phase 3). Human-delivered — no auto-send.~~ ✓
