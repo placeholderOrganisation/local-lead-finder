@@ -91,3 +91,38 @@ export function getOpenAIKey({ required = false } = {}) {
   }
   return missing ? undefined : key;
 }
+
+/**
+ * Resolve the OpenAI chat model, loading .env first.
+ * @param {{fallback?: string}} [opts]
+ * @returns {string}
+ */
+export function getOpenAIModel({ fallback = "gpt-4o-mini" } = {}) {
+  loadEnv();
+  const m = (process.env.OPENAI_MODEL || "").trim();
+  return m || fallback;
+}
+
+/**
+ * Optional OpenAI-compatible base URL (OpenRouter, etc.). Empty → official API.
+ * @returns {string|undefined}
+ */
+export function getOpenAIBaseURL() {
+  loadEnv();
+  const u = (process.env.OPENAI_BASE_URL || "").trim();
+  return u || undefined;
+}
+
+/**
+ * Sender identity injected into outreach copy.
+ * @returns {{senderName:string, localArea:string, portfolioUrl:string, calendarUrl:string}}
+ */
+export function getOutreachProfile() {
+  loadEnv();
+  return {
+    senderName: (process.env.SENDER_NAME || "").trim(),
+    localArea: (process.env.LOCAL_AREA || "").trim(),
+    portfolioUrl: (process.env.PORTFOLIO_URL || "").trim(),
+    calendarUrl: (process.env.CALENDAR_URL || "").trim(),
+  };
+}
