@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local Lead Finder — CRM</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --ink:#1c2330; --muted:#68727f; --line:#e3e7ee;
+    --accent:#2f6fed; --accent-ink:#fff; --shadow:0 6px 24px rgba(20,30,50,.12);
+    --hot:#e5484d; --warm:#e08a00; --audit:#2f6fed; --skip:#8a94a2;
+    --good:#1a8f5a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1420; --panel:#161d2b; --ink:#e8edf5; --muted:#93a0b4; --line:#26303f;
+      --accent:#5b8bff; --accent-ink:#0b1220; --shadow:0 8px 30px rgba(0,0,0,.45);
+      --hot:#ff6b6f; --warm:#f4a52a; --audit:#5b8bff; --skip:#7e8aaa;
+      --good:#3ecb86;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); overflow-x:hidden;
+  }
+  header{padding:18px 20px 6px}
+  h1{font-size:19px; margin:0 0 12px; letter-spacing:.2px}
+  .tiles{display:flex; gap:10px; flex-wrap:wrap}
+  .tile{background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:10px 14px; min-width:88px; box-shadow:var(--shadow)}
+  .tile .n{font-size:22px; font-weight:700}
+  .tile .l{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px}
+  .filters{display:flex; gap:10px; flex-wrap:wrap; align-items:center; padding:14px 20px}
+  .filters input[type=search], .filters select{
+    background:var(--panel); color:var(--ink); border:1px solid var(--line);
+    border-radius:9px; padding:8px 10px; font:inherit}
+  .filters input[type=search]{min-width:240px; flex:1 1 240px}
+  .filters label{color:var(--muted); display:flex; gap:6px; align-items:center}
+  .count{color:var(--muted); margin-left:auto}
+  .table-wrap{padding:0 20px 40px; overflow-x:auto}
+  table{width:100%; border-collapse:collapse; background:var(--panel);
+    border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:var(--shadow)}
+  th,td{padding:10px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap}
+  th{font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted);
+    cursor:pointer; user-select:none; position:sticky; top:0; background:var(--panel)}
+  th.sorted::after{content:" ▾"; opacity:.6}
+  th.sorted.asc::after{content:" ▴"}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:color-mix(in srgb, var(--accent) 8%, transparent)}
+  td.biz{white-space:normal; max-width:320px; font-weight:600}
+  td.cat,td.addr{color:var(--muted)}
+  .pri{display:inline-block; min-width:22px; text-align:center; font-weight:700; border-radius:6px; padding:1px 6px}
+  .badge{display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px}
+  .t-HOT{background:color-mix(in srgb,var(--hot) 18%,transparent); color:var(--hot)}
+  .t-WARM{background:color-mix(in srgb,var(--warm) 18%,transparent); color:var(--warm)}
+  .t-AUDIT{background:color-mix(in srgb,var(--audit) 18%,transparent); color:var(--audit)}
+  .t-SKIP{background:color-mix(in srgb,var(--skip) 18%,transparent); color:var(--skip)}
+  .st{font-size:12px; color:var(--muted)}
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .overlay{position:fixed; inset:0; background:rgba(10,16,28,.45); backdrop-filter:blur(1px)}
+  .drawer{position:fixed; top:0; right:0; height:100%; width:min(460px,94vw);
+    background:var(--panel); border-left:1px solid var(--line); box-shadow:var(--shadow);
+    padding:20px; overflow-y:auto; transition:transform .18s ease}
+  .drawer.hidden{transform:translateX(100%)}
+  .overlay.hidden{display:none}
+  .drawer .close{position:absolute; top:12px; right:14px; border:0; background:transparent;
+    color:var(--muted); font-size:26px; line-height:1; cursor:pointer}
+  .drawer h2{margin:2px 40px 4px 0; font-size:18px}
+  .meta{color:var(--muted); font-size:13px; margin-bottom:12px}
+  .links{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:16px}
+  .field{margin-bottom:12px}
+  .field label{display:block; font-size:11px; text-transform:uppercase; letter-spacing:.5px;
+    color:var(--muted); margin-bottom:4px}
+  .field input,.field select,.field textarea{width:100%; background:var(--bg); color:var(--ink);
+    border:1px solid var(--line); border-radius:9px; padding:8px 10px; font:inherit}
+  .field textarea{resize:vertical}
+  .row2{display:flex; gap:10px}
+  .row2 .field{flex:1}
+  .section{border-top:1px solid var(--line); padding-top:12px; margin-top:6px}
+  .section h3{font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin:0 0 8px}
+  .section ul{margin:0; padding-left:18px}
+  .section li{margin-bottom:4px}
+  .pitch{background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:10px; white-space:pre-wrap}
+  .mini{font-size:11px; border:1px solid var(--line); background:var(--panel); color:var(--ink);
+    border-radius:7px; padding:2px 8px; cursor:pointer; margin-left:8px; text-transform:none; letter-spacing:0}
+  .mini:hover{border-color:var(--accent); color:var(--accent)}
+  .saved{position:fixed; bottom:16px; right:16px; background:var(--good); color:#fff;
+    padding:8px 14px; border-radius:9px; box-shadow:var(--shadow); opacity:0; transition:opacity .2s}
+  .saved.show{opacity:1}
+  .empty{padding:30px; text-align:center; color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Local Lead Finder — CRM</h1>
+  <div class="tiles" id="tiles"></div>
+</header>
+
+<section class="filters">
+  <input type="search" id="q" placeholder="Search business, category, or address…">
+  <select id="fStatus"><option value="">All statuses</option></select>
+  <select id="fTier">
+    <option value="">All tiers</option>
+    <option>HOT</option><option>WARM</option><option>AUDIT</option><option>SKIP</option>
+  </select>
+  <select id="fCategory"><option value="">All categories</option></select>
+  <label><input type="checkbox" id="fIssues"> Has issues</label>
+  <label><input type="checkbox" id="fDue"> Due</label>
+  <span class="count" id="count"></span>
+</section>
+
+<div class="table-wrap">
+  <table id="tbl">
+    <thead><tr>
+      <th data-k="priority">Priority</th>
+      <th data-k="tier">Tier</th>
+      <th data-k="business">Business</th>
+      <th data-k="category">Category</th>
+      <th data-k="phone">Phone</th>
+      <th data-k="status">Status</th>
+      <th data-k="followUpDate">Follow-up</th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="empty" id="empty" hidden>No leads match these filters.</div>
+</div>
+
+<div class="overlay hidden" id="overlay"></div>
+<aside class="drawer hidden" id="drawer" aria-label="Lead details">
+  <button class="close" id="dClose" aria-label="Close">×</button>
+  <h2 id="dName"></h2>
+  <div class="meta" id="dMeta"></div>
+  <div class="links" id="dLinks"></div>
+
+  <div class="field"><label for="dStatus">Status</label><select id="dStatus"></select></div>
+  <div class="row2">
+    <div class="field"><label for="dContacted">Contacted</label><input type="date" id="dContacted"></div>
+    <div class="field"><label for="dFollow">Follow-up</label><input type="date" id="dFollow"></div>
+  </div>
+  <div class="field"><label for="dNotes">Notes</label><textarea id="dNotes" rows="4" placeholder="Call outcomes, next steps…"></textarea></div>
+
+  <div class="section"><h3>Issues</h3><ul id="dIssues"></ul></div>
+  <div class="section"><h3>Pitch <button class="mini" id="dCopy">Copy</button></h3><div class="pitch" id="dPitch"></div></div>
+  <div class="section" id="dFactorsWrap"><h3>Score factors</h3><ul id="dFactors"></ul></div>
+</aside>
+
+<div class="saved" id="saved">Saved</div>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const state = { leads: [], stages: [], sortKey: "priority", sortDir: -1, current: null };
+
+async function load(){
+  const res = await fetch("/api/leads");
+  const data = await res.json();
+  state.leads = data.leads || [];
+  state.stages = data.stages || ["New","Contacted","Replied","Meeting","Won","Lost"];
+  buildStageOptions();
+  buildCategoryOptions();
+  render();
+}
+
+function buildStageOptions(){
+  const fStatus = $("#fStatus"), dStatus = $("#dStatus");
+  for (const s of state.stages){
+    fStatus.insertAdjacentHTML("beforeend", `<option>${esc(s)}</option>`);
+    dStatus.insertAdjacentHTML("beforeend", `<option>${esc(s)}</option>`);
+  }
+}
+function buildCategoryOptions(){
+  const cats = [...new Set(state.leads.map(l => l.category).filter(Boolean))].sort();
+  const sel = $("#fCategory");
+  for (const c of cats) sel.insertAdjacentHTML("beforeend", `<option>${esc(c)}</option>`);
+}
+
+function filtered(){
+  const q = $("#q").value.trim().toLowerCase();
+  const st = $("#fStatus").value, ti = $("#fTier").value, ca = $("#fCategory").value;
+  const issues = $("#fIssues").checked, due = $("#fDue").checked;
+  const end = endOfToday();
+  return state.leads.filter(l => {
+    if (st && l.status !== st) return false;
+    if (ti && (l.tier||"") !== ti) return false;
+    if (ca && (l.category||"") !== ca) return false;
+    if (issues && !(Array.isArray(l.issues) && l.issues.length)) return false;
+    if (due){ const d = l.followUpDate ? new Date(l.followUpDate) : null; if (!d || d > end) return false; }
+    if (q){
+      const hay = [l.business,l.category,l.address].map(x => (x||"").toLowerCase()).join(" ");
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function sortRows(rows){
+  const { sortKey:k, sortDir:d } = state;
+  return rows.slice().sort((a,b) => {
+    let av = a[k], bv = b[k];
+    if (k === "followUpDate"){ av = av?new Date(av).getTime():0; bv = bv?new Date(bv).getTime():0; }
+    else if (k === "priority"){ av = num(av); bv = num(bv); }
+    else { av = (av||"").toString().toLowerCase(); bv = (bv||"").toString().toLowerCase(); }
+    if (av < bv) return -1*d; if (av > bv) return 1*d; return (num(b.priority))-(num(a.priority));
+  });
+}
+
+function render(){
+  renderTiles();
+  const rows = sortRows(filtered());
+  const tb = $("#rows"); tb.innerHTML = "";
+  for (const l of rows){
+    const tr = document.createElement("tr");
+    tr.appendChild(td(`<span class="pri">${l.priority ?? "—"}</span>`, "pri-cell"));
+    tr.appendChild(td(`<span class="badge t-${esc(l.tier||"SKIP")}">${esc(l.tier||"—")}</span>`));
+    tr.appendChild(td(esc(l.business||"(no name)"), "biz"));
+    tr.appendChild(td(esc(l.category||""), "cat"));
+    tr.appendChild(td(l.phone ? `<a href="tel:${esc(l.phone)}" onclick="event.stopPropagation()">${esc(l.phone)}</a>` : ""));
+    tr.appendChild(td(`<span class="st">${esc(l.status||"New")}</span>`));
+    tr.appendChild(td(fmtDate(l.followUpDate), "st"));
+    tr.addEventListener("click", () => openDrawer(l._id));
+    tb.appendChild(tr);
+  }
+  $("#empty").hidden = rows.length > 0;
+  $("#count").textContent = `${rows.length} of ${state.leads.length} leads`;
+  markSortedHeader();
+}
+
+function renderTiles(){
+  const L = state.leads, end = endOfToday(), start = startOfToday();
+  const byStatus = {}; for (const s of state.stages) byStatus[s] = 0;
+  let due = 0, overdue = 0;
+  for (const l of L){
+    if (l.status in byStatus) byStatus[l.status]++;
+    if (l.followUpDate){ const d = new Date(l.followUpDate);
+      if (d < start) overdue++; else if (d <= end) due++; }
+  }
+  const tiles = [["Total", L.length]];
+  for (const s of state.stages) tiles.push([s, byStatus[s]]);
+  tiles.push(["Due today", due], ["Overdue", overdue]);
+  $("#tiles").innerHTML = tiles.map(([l,n]) =>
+    `<div class="tile"><div class="n">${n}</div><div class="l">${esc(l)}</div></div>`).join("");
+}
+
+function markSortedHeader(){
+  document.querySelectorAll("th").forEach(th => {
+    th.classList.toggle("sorted", th.dataset.k === state.sortKey);
+    th.classList.toggle("asc", th.dataset.k === state.sortKey && state.sortDir === 1);
+  });
+}
+
+// ── drawer ────────────────────────────────────────────────────────────────
+function openDrawer(id){
+  const l = state.leads.find(x => x._id === id); if (!l) return;
+  state.current = l;
+  $("#dName").textContent = l.business || "(no name)";
+  const rr = l.rating ? `${l.rating}★ (${l.reviews||0} reviews)` : `${l.reviews||0} reviews`;
+  $("#dMeta").textContent = [l.category, l.tier ? `Tier ${l.tier}` : "", `Priority ${l.priority ?? "—"}`, rr, l.address]
+    .filter(Boolean).join("  ·  ");
+
+  const links = [];
+  if (l.phone) links.push(`<a href="tel:${esc(l.phone)}">📞 ${esc(l.phone)}</a>`);
+  if (l.website) links.push(`<a href="${esc(l.website)}" target="_blank" rel="noopener">🌐 Website</a>`);
+  if (l.mapsUrl) links.push(`<a href="${esc(l.mapsUrl)}" target="_blank" rel="noopener">📍 Map</a>`);
+  $("#dLinks").innerHTML = links.join("");
+
+  $("#dStatus").value = l.status || "New";
+  $("#dContacted").value = dateInput(l.contactedDate);
+  $("#dFollow").value = dateInput(l.followUpDate);
+  $("#dNotes").value = l.notes || "";
+
+  const issues = Array.isArray(l.issues) ? l.issues : [];
+  $("#dIssues").innerHTML = issues.length ? issues.map(i => `<li>${esc(i)}</li>`).join("") : `<li class="st">No audit issues recorded.</li>`;
+  $("#dPitch").textContent = l.pitch || "—";
+
+  const factors = Array.isArray(l.factors) ? l.factors : [];
+  $("#dFactorsWrap").style.display = factors.length ? "" : "none";
+  $("#dFactors").innerHTML = factors.map(f => `<li>${esc(f.label)} <b>(+${esc(f.points)})</b></li>`).join("");
+
+  $("#overlay").classList.remove("hidden");
+  $("#drawer").classList.remove("hidden");
+}
+function closeDrawer(){
+  state.current = null;
+  $("#overlay").classList.add("hidden");
+  $("#drawer").classList.add("hidden");
+}
+
+// ── autosave ────────────────────────────────────────────────────────────────
+let pending = {}, timer = null;
+function queueSave(field, value){
+  if (!state.current) return;
+  pending[field] = value;
+  clearTimeout(timer);
+  timer = setTimeout(flushSave, 450);
+}
+async function flushSave(){
+  if (!state.current) return;
+  const id = state.current._id, patch = pending; pending = {};
+  try{
+    const res = await fetch("/api/update", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ placeId:id, patch })
+    });
+    if (!res.ok) throw new Error("save failed");
+    const doc = await res.json();
+    const i = state.leads.findIndex(x => x._id === id);
+    if (i >= 0) state.leads[i] = doc;
+    if (state.current && state.current._id === id) state.current = doc;
+    render();
+    toast("Saved");
+  }catch(e){ toast("Save failed", true); }
+}
+
+function toast(msg, bad){
+  const t = $("#saved"); t.textContent = msg;
+  t.style.background = bad ? "var(--hot)" : "var(--good)";
+  t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 1200);
+}
+
+// ── helpers ──────────────────────────────────────────────────────────────
+function td(html, cls){ const c = document.createElement("td"); if (cls) c.className = cls; c.innerHTML = html; return c; }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
+function num(v){ const n = Number(v); return Number.isFinite(n) ? n : -Infinity; }
+function startOfToday(){ const d = new Date(); d.setHours(0,0,0,0); return d; }
+function endOfToday(){ const d = new Date(); d.setHours(23,59,59,999); return d; }
+function fmtDate(v){ if (!v) return ""; const d = new Date(v); return isNaN(d) ? "" : d.toISOString().slice(0,10); }
+function dateInput(v){ return fmtDate(v); }
+
+// ── wiring ──────────────────────────────────────────────────────────────
+for (const id of ["q","fStatus","fTier","fCategory","fIssues","fDue"])
+  $("#"+id).addEventListener("input", render);
+document.querySelectorAll("th").forEach(th => th.addEventListener("click", () => {
+  const k = th.dataset.k;
+  if (state.sortKey === k) state.sortDir *= -1;
+  else { state.sortKey = k; state.sortDir = (k === "priority" || k === "followUpDate") ? -1 : 1; }
+  render();
+}));
+$("#dClose").addEventListener("click", closeDrawer);
+$("#overlay").addEventListener("click", closeDrawer);
+$("#dStatus").addEventListener("change", e => queueSave("status", e.target.value));
+$("#dContacted").addEventListener("change", e => queueSave("contactedDate", e.target.value));
+$("#dFollow").addEventListener("change", e => queueSave("followUpDate", e.target.value));
+$("#dNotes").addEventListener("input", e => queueSave("notes", e.target.value));
+$("#dCopy").addEventListener("click", async () => {
+  const p = state.current?.pitch || "";
+  try{ await navigator.clipboard.writeText(p); toast("Pitch copied"); }
+  catch{ toast("Copy failed", true); }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+
+load().catch(e => { document.body.insertAdjacentHTML("beforeend", `<div class="empty">Failed to load: ${esc(e.message)}</div>`); });
+</script>
+</body>
+</html>
