@@ -1,0 +1,23 @@
+{
+  "name": "local-lead-finder",
+  "version": "0.1.0",
+  "description": "Find local businesses to sell websites to, using the Google Places API (New). Flags businesses with no website as the hottest leads.",
+  "type": "module",
+  "bin": {
+    "leads": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dashboard": "node src/server.js",
+    "worker": "node src/worker.js",
+    "crm": "node src/crm-cli.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.120.0",
+    "mongodb": "^7.5.0"
+  }
+}
