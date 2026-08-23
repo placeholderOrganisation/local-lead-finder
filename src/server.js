@@ -8,9 +8,11 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { loadEnv } from "./env.js";
-import { listLeads, stats, updateLead, getLead, saveLighthouse, STAGES } from "./store.js";
+import { listLeads, stats, updateLead, getLead, saveLighthouse, saveAssets, saveMockup, STAGES } from "./store.js";
 import { ensureIndexes, close } from "./db.js";
 import { deepAudit } from "./deepaudit.js";
+import { prepareOutreach } from "./compose.js";
+import { generateMockup } from "./mockup.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(HERE, "public");
@@ -67,8 +69,29 @@ async function handle(req, res) {
       return sendJson(res, 200, { lighthouse: scores, lead: doc });
     }
 
-    // Future mutating routes slot in here (e.g. POST /api/prepare, POST /api/mockup,
-    // GET /mockup/:id) — reuse isLocalRequest() for the mutating ones.
+    if (route === "POST /api/prepare") {
+      if (!isLocalRequest(req)) return sendJson(res, 403, { error: "forbidden origin" });
+      req.setTimeout(90_000);
+      const body = await readJson(req);
+      if (!body || !body.placeId) return sendJson(res, 400, { error: "placeId required" });
+      const lead = await getLead(body.placeId);
+      if (!lead) return sendJson(res, 404, { error: "lead not found" });
+      const assets = await prepareOutreach(lead);
+      const doc = await saveAssets(body.placeId, assets);
+      return sendJson(res, 200, { assets, lead: doc });
+    }
+
+    if (route === "POST /api/mockup") {
+      if (!isLocalRequest(req)) return sendJson(res, 403, { error: "forbidden origin" });
+      req.setTimeout(90_000);
+      const body = await readJson(req);
+      if (!body || !body.placeId) return sendJson(res, 400, { error: "placeId required" });
+      const lead = await getLead(body.placeId);
+      if (!lead) return sendJson(res, 404, { error: "lead not found" });
+      const mockup = await generateMockup(lead);
+      const doc = await saveMockup(body.placeId, mockup);
+      return sendJson(res, 200, { ok: true, url: `/mockup/${encodeURIComponent(body.placeId)}`, lead: doc });
+    }
 
     return sendJson(res, 404, { error: "not found" });
   } catch (e) {

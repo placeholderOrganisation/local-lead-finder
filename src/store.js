@@ -229,6 +229,23 @@ export async function saveLighthouse(placeId, scores) {
   return res && res.value !== undefined ? res.value : res;
 }
 
+/**
+ * Persist composed outreach assets (#35). Does not send anything.
+ * @param {string} placeId
+ * @param {object} assets
+ * @returns {Promise<object|null>}
+ */
+export async function saveAssets(placeId, assets) {
+  if (!placeId || !assets) return null;
+  const leads = await getColl("leads");
+  const res = await leads.findOneAndUpdate(
+    { _id: placeId },
+    { $set: { assets, updatedAt: new Date() } },
+    { returnDocument: "after" }
+  );
+  return res && res.value !== undefined ? res.value : res;
+}
+
 // ── Places usage tracking + monthly cap (#29) ───────────────────────────────
 // The worker bills the Places API per request (~5,000 free Pro calls/mo). We
 // count ACTUAL pages fetched (1 request per page) into a per-month `usage` doc

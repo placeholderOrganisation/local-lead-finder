@@ -87,6 +87,13 @@
   .mini{font-size:11px; border:1px solid var(--line); background:var(--panel); color:var(--ink);
     border-radius:7px; padding:2px 8px; cursor:pointer; margin-left:8px; text-transform:none; letter-spacing:0}
   .mini:hover{border-color:var(--accent); color:var(--accent)}
+  .mini:disabled{opacity:.5; cursor:not-allowed}
+  .banner{background:#f8eccc; border:1px solid #e0c56a; color:#5c4a10; padding:10px 12px;
+    border-radius:10px; margin:0 0 12px; font-size:13px}
+  .banner.hidden{display:none}
+  .pre{white-space:pre-wrap; background:var(--bg); border:1px solid var(--line); border-radius:9px;
+    padding:10px; font-size:13px; max-height:220px; overflow:auto}
+  .actions{display:flex; gap:8px; flex-wrap:wrap; margin:8px 0}
   .saved{position:fixed; bottom:16px; right:16px; background:var(--good); color:#fff;
     padding:8px 14px; border-radius:9px; box-shadow:var(--shadow); opacity:0; transition:opacity .2s}
   .saved.show{opacity:1}
@@ -136,6 +143,15 @@
   <div class="links" id="dLinks"></div>
 
   <div class="field"><label for="dStatus">Status</label><select id="dStatus"></select></div>
+  <div class="field"><label for="dChannel">Contact channel</label>
+    <select id="dChannel">
+      <option value="">—</option>
+      <option value="phone">Phone</option>
+      <option value="email">Email</option>
+      <option value="dm">DM</option>
+      <option value="in-person">In person</option>
+    </select>
+  </div>
   <div class="row2">
     <div class="field"><label for="dContacted">Contacted</label><input type="date" id="dContacted"></div>
     <div class="field"><label for="dFollow">Follow-up</label><input type="date" id="dFollow"></div>
@@ -149,6 +165,24 @@
   </div>
   <div class="section"><h3>Pitch <button class="mini" id="dCopy">Copy</button></h3><div class="pitch" id="dPitch"></div></div>
   <div class="section" id="dFactorsWrap"><h3>Score factors</h3><ul id="dFactors"></ul></div>
+
+  <div class="banner hidden" id="dVerify">Verify first — no claims made about this site (403/500/unreachable). Do not say it is down.</div>
+  <div class="section">
+    <h3>Outreach</h3>
+    <div class="actions">
+      <button class="mini" type="button" id="dPrepare">Prepare outreach</button>
+      <button class="mini" type="button" id="dMock">Generate mockup</button>
+      <a class="mini hidden" id="dMockLink" href="#" target="_blank" rel="noopener">Preview mockup</a>
+    </div>
+    <div class="field"><label>Money pitch</label><div class="pre" id="dMoney">—</div></div>
+    <div class="field"><label>Email <button class="mini" type="button" id="dCopyEmail">Copy</button></label>
+      <div class="st" id="dEmailSub"></div>
+      <div class="pre" id="dEmailBody">—</div>
+    </div>
+    <div class="field"><label>Phone script <button class="mini" type="button" id="dCopyPhone">Copy</button></label>
+      <div class="pre" id="dPhone">—</div>
+    </div>
+  </div>
 </aside>
 
 <div class="saved" id="saved">Saved</div>
@@ -271,6 +305,7 @@ function openDrawer(id){
   $("#dLinks").innerHTML = links.join("");
 
   $("#dStatus").value = l.status || "New";
+  $("#dChannel").value = l.contactChannel || "";
   $("#dContacted").value = dateInput(l.contactedDate);
   $("#dFollow").value = dateInput(l.followUpDate);
   $("#dNotes").value = l.notes || "";
@@ -283,6 +318,7 @@ function openDrawer(id){
   const factors = Array.isArray(l.factors) ? l.factors : [];
   $("#dFactorsWrap").style.display = factors.length ? "" : "none";
   $("#dFactors").innerHTML = factors.map(f => `<li>${esc(f.label)} <b>(+${esc(f.points)})</b></li>`).join("");
+  renderOutreach(l);
 
   $("#overlay").classList.remove("hidden");
   $("#drawer").classList.remove("hidden");
@@ -339,6 +375,72 @@ async function runDeepAudit(){
   }
 }
 
+function renderOutreach(l){
+  const verify = $("#dVerify");
+  verify.classList.toggle("hidden", !l?.needsVerification);
+  const a = l?.assets || {};
+  $("#dMoney").textContent = a.moneyPitch || "—";
+  $("#dEmailSub").textContent = a.emailDraft?.subject || "";
+  $("#dEmailBody").textContent = a.emailDraft?.body || "—";
+  $("#dPhone").textContent = a.phoneScript || "—";
+  const link = $("#dMockLink");
+  if (l?.mockup?.html) {
+    link.classList.remove("hidden");
+    link.href = "/mockup/" + encodeURIComponent(l._id);
+  } else {
+    link.classList.add("hidden");
+    link.href = "#";
+  }
+}
+
+async function postJson(path, body){
+  const res = await fetch(path, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+function mergeLead(id, doc){
+  const i = state.leads.findIndex(x => x._id === id);
+  if (i >= 0 && doc) state.leads[i] = doc;
+  if (state.current && state.current._id === id && doc) state.current = doc;
+}
+
+async function runPrepare(){
+  const l = state.current; if (!l) return;
+  const btn = $("#dPrepare"); btn.disabled = true;
+  $("#dMoney").textContent = "Generating…";
+  try {
+    const data = await postJson("/api/prepare", { placeId: l._id });
+    mergeLead(l._id, data.lead);
+    if (data.assets && state.current) state.current.assets = data.assets;
+    renderOutreach(state.current);
+    toast("Outreach prepared");
+  } catch (e) {
+    $("#dMoney").textContent = "Failed: " + e.message;
+    toast("Prepare failed", true);
+  } finally { btn.disabled = false; }
+}
+
+async function runMockup(){
+  const l = state.current; if (!l) return;
+  const btn = $("#dMock"); btn.disabled = true;
+  try {
+    const data = await postJson("/api/mockup", { placeId: l._id });
+    mergeLead(l._id, data.lead);
+    renderOutreach(state.current);
+    if (data.url) window.open(data.url, "_blank", "noopener");
+    toast("Mockup ready");
+  } catch (e) {
+    toast("Mockup failed", true);
+  } finally { btn.disabled = false; }
+}
+
+async function copyText(text, okMsg){
+  try { await navigator.clipboard.writeText(text || ""); toast(okMsg); }
+  catch { toast("Copy failed", true); }
+}
+
 // ── autosave ────────────────────────────────────────────────────────────────
 let pending = {}, timer = null;
 function queueSave(field, value){
@@ -391,7 +493,11 @@ document.querySelectorAll("th").forEach(th => th.addEventListener("click", () =>
 }));
 $("#dClose").addEventListener("click", closeDrawer);
 $("#overlay").addEventListener("click", closeDrawer);
-$("#dStatus").addEventListener("change", e => queueSave("status", e.target.value));
+$("#dStatus").addEventListener("change", e => {
+  queueSave("status", e.target.value);
+  if (e.target.value === "Contacted") queueSave("contactChannel", $("#dChannel").value);
+});
+$("#dChannel").addEventListener("change", e => queueSave("contactChannel", e.target.value));
 $("#dContacted").addEventListener("change", e => queueSave("contactedDate", e.target.value));
 $("#dFollow").addEventListener("change", e => queueSave("followUpDate", e.target.value));
 $("#dNotes").addEventListener("input", e => queueSave("notes", e.target.value));
@@ -400,6 +506,13 @@ $("#dCopy").addEventListener("click", async () => {
   try{ await navigator.clipboard.writeText(p); toast("Pitch copied"); }
   catch{ toast("Copy failed", true); }
 });
+$("#dPrepare").addEventListener("click", runPrepare);
+$("#dMock").addEventListener("click", runMockup);
+$("#dCopyEmail").addEventListener("click", () => {
+  const a = state.current?.assets?.emailDraft || {};
+  copyText([a.subject, a.body].filter(Boolean).join("\n\n"), "Email copied");
+});
+$("#dCopyPhone").addEventListener("click", () => copyText(state.current?.assets?.phoneScript, "Script copied"));
 $("#dDeep").addEventListener("click", runDeepAudit);
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
 
