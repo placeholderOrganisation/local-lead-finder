@@ -27,21 +27,131 @@ export const UNIFIED_COLUMNS = [
   ["PlaceId", "Place ID"],
 ];
 
-/** Adapt a parsed CSV row (capitalized headers) to the canonical lead object. */
-export function csvToLead(r) {
+/**
+ * Canonical lead record (the single source of truth — see epic #1).
+ * Both the CSV-import path (`csvToRecord`) and the in-process worker path
+ * (`recordFrom`) funnel through `keyedRowToRecord` so they emit the SAME shape.
+ *
+ * @param {Record<string,any>} r  parsed unified-CSV row (header-keyed)
+ * @returns {object} canonical record
+ */
+export function csvToRecord(r) {
+  // Translate CSV *labels* -> internal keys. UNIFIED_COLUMNS is the ONLY place
+  // the header-name mapping lives; accept a key-keyed row as a fallback.
+  const keyed = {};
+  for (const [key, label] of UNIFIED_COLUMNS) keyed[key] = r[label] ?? r[key];
+  // Contact fields (added in P3 / #32) — read defensively, default empty.
+  keyed.Email = r.Email ?? "";
+  keyed.Socials = r.Socials ?? "";
+  keyed.NeedsVerification = r.NeedsVerification ?? "";
+  return keyedRowToRecord(keyed);
+}
+
+/**
+ * Build the canonical record from an in-memory lead + its audit entry, reusing
+ * the existing merge/scoring in `toUnifiedRow` (no CSV round-trip, no duplicated
+ * scoring). This is the helper the background worker (#30) calls.
+ *
+ * @param {object} lead   canonical lead object (from qualify())
+ * @param {{audit:object,psi:object}|null} entry  audit result for lead.website
+ * @returns {object} canonical record
+ */
+export function recordFrom(lead, entry) {
+  const row = toUnifiedRow(lead, entry);
+  row.Email = lead.email ?? "";
+  row.Socials = lead.socials ?? "";
+  row.NeedsVerification = lead.needsVerification ?? "";
+  return keyedRowToRecord(row);
+}
+
+/** Map an internal key-keyed row (CSV-derived or `toUnifiedRow` output) -> canonical record. */
+function keyedRowToRecord(r) {
   return {
-    name: r.Business ?? "",
-    tier: (r.Tier ?? "").toUpperCase(),
-    reason: r.Why ?? "",
-    phone: r.Phone ?? "",
-    website: r.Website ?? "",
-    rating: r.Rating ?? "",
+    placeId: str(r.PlaceId),
+    business: str(r.Business),
+    phone: str(r.Phone),
+    website: str(r.Website),
+    category: str(r.Category),
+    address: str(r.Address),
+    mapsUrl: str(r.MapsUrl),
+    rating: numOrBlank(r.Rating),
     reviews: Number(r.Reviews) || 0,
-    category: r.Category ?? "",
-    address: r.Address ?? "",
-    mapsUrl: r["Google Maps"] ?? r.MapsUrl ?? "",
-    placeId: r["Place ID"] ?? r.PlaceId ?? "",
+    tier: str(r.Tier).toUpperCase(),
+    priority: r.Priority == null || r.Priority === "" ? null : Number(r.Priority),
+    issues: splitList(r.Issues),
+    pitch: str(r.Pitch),
+    // audit facts — tri-state / numeric, null when the check never ran
+    https: triState(r.HTTPS),
+    mobile: triState(r.Mobile),
+    loadSec: numOrNull(r.LoadSec),
+    sizeKb: numOrNull(r.SizeKb),
+    copyright: numOrNull(r.Copyright),
+    psiMobile: psiVal(r.PsiMobile),
+    psiSeo: numOrNull(r.PsiSeo),
+    lcp: numOrNull(r.Lcp),
+    // contact fields (P3 / #32) — present in the shape, empty until captured
+    email: str(r.Email),
+    socials: splitList(r.Socials),
+    needsVerification: boolish(r.NeedsVerification),
   };
+}
+
+/** Backward-compatible narrow mapper (find-CSV -> lead facts). Delegates naming to csvToRecord. */
+export function csvToLead(r) {
+  const rec = csvToRecord(r);
+  return {
+    name: rec.business,
+    tier: rec.tier,
+    reason: r.Why ?? "",
+    phone: rec.phone,
+    website: rec.website,
+    rating: rec.rating,
+    reviews: rec.reviews,
+    category: rec.category,
+    address: rec.address,
+    mapsUrl: rec.mapsUrl,
+    placeId: rec.placeId,
+  };
+}
+
+// ── coercion helpers (shared by every record producer) ──────────────────────
+function str(v) {
+  return v == null ? "" : String(v);
+}
+function numOrNull(v) {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+}
+function numOrBlank(v) {
+  if (v == null || v === "") return "";
+  const n = Number(v);
+  return Number.isNaN(n) ? str(v) : n;
+}
+function triState(v) {
+  if (v === true) return true;
+  if (v === false) return false;
+  const s = str(v).trim().toLowerCase();
+  if (s === "yes") return true;
+  if (s === "no") return false;
+  return null;
+}
+function psiVal(v) {
+  if (v == null || v === "") return null;
+  if (v === "err") return "err";
+  const n = Number(v);
+  return Number.isNaN(n) ? str(v) : n;
+}
+function splitList(v) {
+  if (Array.isArray(v)) return v.filter(Boolean);
+  const s = str(v).trim();
+  return s ? s.split(/;\s*/).filter(Boolean) : [];
+}
+function boolish(v) {
+  if (v === true) return true;
+  if (v === false) return false;
+  const s = str(v).trim().toLowerCase();
+  return s === "true" || s === "yes" || s === "1";
 }
 
 /**
