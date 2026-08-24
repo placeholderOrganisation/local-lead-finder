@@ -98,10 +98,10 @@ async function main() {
     const html = await page.text();
     ok(/noindex/i.test(html), "preview is noindex");
     ok(/preview-banner|Preview \/ mockup/i.test(html), "preview banner present");
-    const cfg = await fetch(`${dash}/preview/${encodeURIComponent(hasSite._id)}/config.js`);
-    const js = await cfg.text();
-    ok(js.includes(stored.mockup.config.business.name), "injected config.js has the business name");
-    ok(!js.includes("</script>"), "injected config.js is XSS-safe");
+    const cfg = await fetch(`${dash}/preview/${encodeURIComponent(hasSite._id)}/config.json`);
+    ok(cfg.ok, `GET /preview/:placeId/config.json → ${cfg.status}`);
+    const json = await cfg.json();
+    ok(json?.business?.name === stored.mockup.config.business.name, "preview config.json has the business name");
   } catch (e) {
     console.log(`  skip - dashboard not reachable at ${dash} (${e.message})`);
     console.log("  (config was still generated and persisted; start `npm run dashboard` to preview it)");

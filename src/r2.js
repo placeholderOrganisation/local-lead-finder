@@ -4,10 +4,10 @@
 import { spawnSync } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getCloudflareToken, getR2Config } from "./env.js";
+import { getCloudflareToken, getHostingMode, getR2Config, getWorkersSubdomain } from "./env.js";
 import { mimeFor, resolvePreviewFile, resolveTemplateDir, serializeConfigJs } from "./site-config.js";
 
 const TEMPLATE_FILES = ["index.html", "about.html", "styles.css", "app.js"];
@@ -18,24 +18,69 @@ export function r2Enabled() {
   return Boolean(c.accountId && c.accessKeyId && c.secretAccessKey && c.bucket && c.publicBase);
 }
 
-/** Public object URL (R2 has no directory index — always …/index.html). */
-export function publicUrlFor(placeId, publicBase = getR2Config().publicBase) {
-  const base = String(publicBase || "").replace(/\/+$/, "");
-  const id = encodeURI(String(placeId || "").replace(/^\/+|\/+$/g, ""));
-  return `${base}/${id}/index.html`;
+/** Canonical template type (`accountant`), matching `resolveTemplateDir`. */
+export function typeSlug(type) {
+  return basename(resolveTemplateDir({ category: type }));
+}
+
+/** Per-type R2 bucket: `mockup-<type>`. */
+export function bucketFor(type) {
+  return `mockup-${typeSlug(type)}`;
 }
 
 /**
- * Upload template/<type>/{index,about,styles,app} + generated config.js to
- * `{placeId}/` in the R2 bucket. Overwrites on re-publish.
+ * Public mockup URL.
+ * Worker mode: `https://mockup-<type>.<WORKERS_SUBDOMAIN>/{placeId}/`
+ * Bucket rollback: `${MOCKUP_PUBLIC_BASE}/{placeId}/index.html`
+ * A 2nd argument that looks like a URL is treated as the legacy public base
+ * (unit tests + explicit rollback).
  *
  * @param {string} placeId
- * @param {object} config  window.SITE object
+ * @param {string} [typeOrBase]
+ */
+export function publicUrlFor(placeId, typeOrBase) {
+  const looksUrl = typeof typeOrBase === "string" && /^https?:\/\//i.test(typeOrBase);
+  const mode = getHostingMode();
+  if (mode === "bucket" || looksUrl) {
+    const base = String(looksUrl ? typeOrBase : getR2Config().publicBase).replace(/\/+$/, "");
+    const id = encodeURI(String(placeId || "").replace(/^\/+|\/+$/g, ""));
+    return `${base}/${id}/index.html`;
+  }
+  const sub = getWorkersSubdomain();
+  if (!sub) {
+    throw new Error(
+      "Missing WORKERS_SUBDOMAIN in .env (e.g. your-name.workers.dev). Required when HOSTING_MODE=worker."
+    );
+  }
+  const id = encodeURI(String(placeId || "").replace(/^\/+|\/+$/g, ""));
+  return `https://${bucketFor(typeOrBase)}.${sub}/${id}/`;
+}
+
+/**
+ * Publish a lead mockup. Worker mode writes only `{placeId}/config.json` to
+ * `mockup-<type>`. Bucket rollback keeps the old per-lead template + config.js
+ * upload to R2_BUCKET so HOSTING_MODE=bucket still serves.
+ *
+ * @param {string} placeId
+ * @param {object} config
  * @param {string} [businessType]
- * @returns {Promise<string|null>} publicUrl, or null if R2 env is missing
+ * @returns {Promise<string|null>}
  */
 export async function publishMockup(placeId, config, businessType) {
   if (!placeId) throw new Error("publishMockup requires placeId");
+  if (getHostingMode() === "worker") {
+    if (!getCloudflareToken() && !r2Enabled()) return null;
+    if (!getWorkersSubdomain()) {
+      throw new Error(
+        "Missing WORKERS_SUBDOMAIN in .env (e.g. your-name.workers.dev). Required when HOSTING_MODE=worker."
+      );
+    }
+    const type = typeSlug(businessType || config?.business?.category);
+    const body = JSON.stringify(config ?? {});
+    await putObject(bucketFor(type), `${placeId}/config.json`, body, "application/json; charset=utf-8", "public, max-age=60");
+    return publicUrlFor(placeId, type);
+  }
+
   if (!r2Enabled()) return null;
 
   const r2 = getR2Config();

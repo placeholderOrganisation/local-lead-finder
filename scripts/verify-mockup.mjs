@@ -15,6 +15,7 @@ import { listLeads, getLead, saveMockup } from "../src/store.js";
 import { close } from "../src/db.js";
 import { buildSiteConfig } from "../src/mockup.js";
 import { r2Enabled, publishMockup } from "../src/r2.js";
+import { getHostingMode } from "../src/env.js";
 import { serializeConfigJs } from "../src/site-config.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -86,21 +87,25 @@ async function main() {
     ok(indexRes.ok, `GET /preview/:id/ → ${indexRes.status}`);
     const html = await indexRes.text();
     ok(/noindex/i.test(html), "preview HTML is noindex");
-    ok(/Preview \/ mockup/i.test(html), "preview banner is visible");
-    ok(/Reviews via Google/i.test(html), "Reviews via Google attribution is present");
+    ok(/Preview \/ mockup/i.test(html), "preview title/banner is present");
     ok(!ASSET_URL.test(html), "preview HTML has no external script/link/img/iframe URLs");
     ok(!CSS_REMOTE.test(html), "preview HTML has no remote CSS url()");
 
-    const jsRes = await fetch(`${base}/preview/${encodeURIComponent(lead._id)}/config.js`);
-    ok(jsRes.ok, `GET /preview/:id/config.js → ${jsRes.status}`);
-    const js = await jsRes.text();
-    ok(js.includes(site.business.name), "preview config.js includes the business name");
-    ok(!js.includes("</script>"), "preview config.js is XSS-safe");
+    const jsonRes = await fetch(`${base}/preview/${encodeURIComponent(lead._id)}/config.json`);
+    ok(jsonRes.ok, `GET /preview/:id/config.json → ${jsonRes.status}`);
+    const cfg = await jsonRes.json();
+    ok(cfg?.business?.name === site.business.name, "preview config.json includes the business name");
 
-    for (const asset of ["about.html", "styles.css", "app.js"]) {
-      const r = await fetch(`${base}/preview/${encodeURIComponent(lead._id)}/${asset}`);
-      ok(r.ok, `GET /preview/:id/${asset} → ${r.status}`);
-    }
+    const absCfg = await fetch(`${base}/${encodeURIComponent(lead._id)}/config.json`);
+    ok(absCfg.ok, `GET /:id/config.json (absolute, Next contract) → ${absCfg.status}`);
+
+    const nextAsset = html.match(/\/_next\/static\/[^"']+/);
+    ok(nextAsset, "preview HTML references /_next/static/…");
+    const nextRes = await fetch(`${base}${nextAsset[0]}`);
+    ok(nextRes.ok, `GET ${nextAsset[0]} → ${nextRes.status}`);
+
+    const about = await fetch(`${base}/preview/${encodeURIComponent(lead._id)}/about/`);
+    ok(about.ok, `GET /preview/:id/about/ SPA fallback → ${about.status}`);
 
     const redir = await fetch(`${base}/mockup/${encodeURIComponent(lead._id)}`, { redirect: "manual" });
     ok(redir.status === 302, `GET /mockup/:id redirects (${redir.status})`);
@@ -115,16 +120,29 @@ async function main() {
   console.log("\n[4] R2 publish (when configured)");
   if (r2Enabled()) {
     const publicUrl = await publishMockup(lead._id, stored.mockup.config, lead.category);
-    ok(typeof publicUrl === "string" && publicUrl.includes("/index.html"), `published ${publicUrl}`);
-    const live = await fetch(publicUrl);
-    ok(live.ok, `public URL GET → ${live.status}`);
-    const liveHtml = await live.text();
-    ok(/Reviews via Google/i.test(liveHtml), "public page has Reviews via Google");
-    const cfgUrl = publicUrl.replace(/index\.html$/i, "config.js");
-    const liveCfg = await fetch(cfgUrl);
-    ok(liveCfg.ok, `public config.js GET → ${liveCfg.status}`);
-    const liveJs = await liveCfg.text();
-    ok(liveJs.includes(site.business.name), "public config.js is personalized");
+    if (getHostingMode() === "worker") {
+      ok(typeof publicUrl === "string" && /workers\.dev\/.+\/$/.test(publicUrl), `published ${publicUrl}`);
+      const live = await fetch(publicUrl);
+      ok(live.ok, `public URL GET → ${live.status}`);
+      const liveHtml = await live.text();
+      ok(/noindex/i.test(liveHtml), "public page is noindex");
+      const cfgUrl = new URL("config.json", publicUrl).href;
+      const liveCfg = await fetch(cfgUrl);
+      ok(liveCfg.ok, `public config.json GET → ${liveCfg.status}`);
+      const liveJson = await liveCfg.json();
+      ok(liveJson?.business?.name === site.business.name, "public config.json is personalized");
+    } else {
+      ok(typeof publicUrl === "string" && publicUrl.includes("/index.html"), `published ${publicUrl}`);
+      const live = await fetch(publicUrl);
+      ok(live.ok, `public URL GET → ${live.status}`);
+      const liveHtml = await live.text();
+      ok(/Reviews via Google/i.test(liveHtml), "public page has Reviews via Google");
+      const cfgUrl = publicUrl.replace(/index\.html$/i, "config.js");
+      const liveCfg = await fetch(cfgUrl);
+      ok(liveCfg.ok, `public config.js GET → ${liveCfg.status}`);
+      const liveJs = await liveCfg.text();
+      ok(liveJs.includes(site.business.name), "public config.js is personalized");
+    }
     const after = await saveMockup(lead._id, {
       config: stored.mockup.config,
       generatedAt: stored.mockup.generatedAt,
@@ -191,6 +209,7 @@ function runR2OffChild() {
     const env = { ...process.env };
     // Empty (not deleted) so loadEnv() will not refill them from .env.
     for (const k of R2_KEYS) env[k] = "";
+    env.HOSTING_MODE = "bucket";
     env.VERIFY_MOCKUP_NESTED = "1";
     const child = spawn(process.execPath, ["scripts/verify-mockup.mjs", "--r2-off"], {
       cwd: ROOT,

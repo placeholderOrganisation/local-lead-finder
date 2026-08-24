@@ -18,7 +18,7 @@ import {
   emptySiteConfig,
   mimeFor,
   resolvePreviewFile,
-  resolveTemplateDir,
+  resolvePreviewRoot,
   serializeConfigJs,
 } from "./site-config.js";
 
@@ -55,6 +55,20 @@ async function handle(req, res) {
     if (req.method === "GET" && previewMatch) {
       const placeId = decodeURIComponent(previewMatch[1]);
       return servePreview(res, placeId, previewMatch[2]);
+    }
+
+    // Next export uses origin-absolute `/_next/…` and `/{placeId}/config.json`.
+    if (req.method === "GET" && url.pathname.startsWith("/_next/")) {
+      return serveExportAsset(res, url.pathname);
+    }
+    const configMatch = url.pathname.match(/^\/([^/]+)\/config\.json$/);
+    if (req.method === "GET" && configMatch) {
+      const placeId = decodeURIComponent(configMatch[1]);
+      if (!["api", "preview", "mockup"].includes(placeId)) {
+        const lead = await getLead(placeId);
+        if (!lead) return sendJson(res, 404, { error: "lead not found" });
+        return sendLeadConfig(res, lead, placeId);
+      }
     }
 
     // ── mutating routes (CSRF/DNS-rebinding guarded) ──────────────────────────
@@ -172,9 +186,9 @@ async function ensureMockup(lead, { regenerate = false, publish = false } = {}) 
 }
 
 /**
- * GET /preview/:placeId/* — serve the checked-in template with per-lead config.js.
- * Template files are never rewritten; only config.js is generated from mockup.config.
- * Relative links (about.html, styles.css, app.js) resolve the same as file://.
+ * GET /preview/:placeId/* — Next `out/` + per-lead config.json (SPA fallback).
+ * Origin-absolute `/_next/…` and `/{placeId}/config.json` are served separately
+ * so the export matches production.
  */
 async function servePreview(res, placeId, rest) {
   if (rest == null) {
@@ -188,6 +202,10 @@ async function servePreview(res, placeId, rest) {
 
   const rel = rest === "/" ? "/index.html" : rest;
   const base = rel.split("/").filter(Boolean).pop() || "";
+
+  if (base === "config.json") {
+    return sendLeadConfig(res, lead, placeId);
+  }
 
   if (base === "config.js") {
     const stored = lead.mockup?.config;
@@ -204,7 +222,11 @@ async function servePreview(res, placeId, rest) {
     return;
   }
 
-  const file = resolvePreviewFile(resolveTemplateDir(lead), rel);
+  const root = resolvePreviewRoot(lead);
+  let file = resolvePreviewFile(root, rel);
+  if (!file && base && !base.includes(".")) {
+    file = resolvePreviewFile(root, "/index.html");
+  }
   if (!file) return sendJson(res, 404, { error: "not found" });
   const buf = await readFile(file);
   res.writeHead(200, {
@@ -213,6 +235,32 @@ async function servePreview(res, placeId, rest) {
     "X-Robots-Tag": "noindex, nofollow",
   });
   res.end(buf);
+}
+
+async function serveExportAsset(res, pathname) {
+  const root = resolvePreviewRoot({ category: "accountant" });
+  const file = resolvePreviewFile(root, pathname);
+  if (!file) return sendJson(res, 404, { error: "not found" });
+  const buf = await readFile(file);
+  res.writeHead(200, {
+    "Content-Type": mimeFor(file),
+    "Cache-Control": "no-store",
+    "X-Robots-Tag": "noindex, nofollow",
+  });
+  res.end(buf);
+}
+
+function sendLeadConfig(res, lead, placeId) {
+  const stored = lead.mockup?.config;
+  const config = stored && typeof stored === "object" ? { ...stored } : emptySiteConfig(placeId);
+  config.meta = { ...(config.meta || {}), preview: true, placeId };
+  res.writeHead(200, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+    "X-Robots-Tag": "noindex, nofollow",
+  });
+  res.end(JSON.stringify(config));
 }
 
 async function serveSpa(res) {

@@ -110,6 +110,19 @@ export function resolveTemplateDir(lead) {
 }
 
 /**
+ * Directory the dashboard serves for `/preview`. Prefers the Next static
+ * export (`out/`) when present so local preview matches production.
+ * @param {object} [lead]
+ * @returns {string}
+ */
+export function resolvePreviewRoot(lead) {
+  const dir = resolveTemplateDir(lead);
+  const out = join(dir, "out");
+  if (dirHasIndex(out)) return out;
+  return dir;
+}
+
+/**
  * Resolve a file under a template dir. Rejects path traversal and missing files.
  * @param {string} templateDir
  * @param {string} urlPath  e.g. "/index.html", "/about.html", "/"
