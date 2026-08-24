@@ -83,14 +83,13 @@ async function main() {
   console.log("\n[3] Mockup config (template + window.SITE, no HTML blob)");
   const site = await buildSiteConfig(hasSite);
   ok(site?.business?.name && site?.copy?.heroHeadline, "SITE has facts + copy");
-  ok(Array.isArray(site.reviews) && site.reviews.length === 0, "reviews empty until #42");
+  ok(Array.isArray(site.reviews) && site.reviews.length <= 5, "reviews are an array of at most 5");
   ok(!site.html, "no HTML blob on the SITE object");
   ok(!TECH.test(JSON.stringify(site.copy)), "copy avoids raw tech jargon");
 
   const stored = await getLead(hasSite._id);
   ok(stored?.mockup?.config?.copy?.heroHeadline, "mockup.config persisted on the lead");
-  ok(!stored.mockup.html, "no HTML blob stored on the lead");
-  ok(stored.mockup.publicUrl == null, "publicUrl stays null until hosted");
+  ok(!stored.mockup.html && !stored.mockup.html, "no HTML blob stored on the lead");
 
   const dash = process.env.DASHBOARD_URL || `http://127.0.0.1:${process.env.PORT || 4000}`;
   try {
@@ -98,7 +97,7 @@ async function main() {
     ok(page.ok, `GET ${dash}/preview/:placeId/ → ${page.status}`);
     const html = await page.text();
     ok(/noindex/i.test(html), "preview is noindex");
-    ok(/preview-banner/i.test(html), "preview banner present");
+    ok(/preview-banner|Preview \/ mockup/i.test(html), "preview banner present");
     const cfg = await fetch(`${dash}/preview/${encodeURIComponent(hasSite._id)}/config.js`);
     const js = await cfg.text();
     ok(js.includes(stored.mockup.config.business.name), "injected config.js has the business name");

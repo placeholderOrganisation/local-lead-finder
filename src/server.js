@@ -43,14 +43,11 @@ async function handle(req, res) {
       return sendJson(res, 200, { leads, stats: s, stages: STAGES });
     }
 
-    const mockupMatch = url.pathname.match(/^\/mockup\/([^/]+)$/);
+    const mockupMatch = url.pathname.match(/^\/mockup\/([^/]+)\/?$/);
     if (req.method === "GET" && mockupMatch) {
       const placeId = decodeURIComponent(mockupMatch[1]);
-      const lead = await getLead(placeId);
-      const html = lead?.mockup?.html;
-      if (!html) return sendJson(res, 404, { error: "mockup not found" });
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(html);
+      res.writeHead(302, { Location: `/preview/${encodeURIComponent(placeId)}/` });
+      res.end();
       return;
     }
 

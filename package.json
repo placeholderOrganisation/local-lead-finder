@@ -13,7 +13,8 @@
     "crm": "node src/crm-cli.js",
     "test": "node --test",
     "verify:crm": "node scripts/verify-crm.mjs",
-    "verify:outreach": "node scripts/verify-outreach.mjs"
+    "verify:outreach": "node scripts/verify-outreach.mjs",
+    "verify:mockup": "node scripts/verify-mockup.mjs"
   },
   "engines": {
     "node": ">=22.18"

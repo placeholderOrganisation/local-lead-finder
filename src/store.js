@@ -208,7 +208,7 @@ export async function saveMockup(placeId, mockup) {
   }
   const res = await leads.findOneAndUpdate(
     { _id: placeId },
-    { $set: set },
+    { $set: set, $unset: { "mockup.html": "", "mockup.html": "" } },
     { returnDocument: "after" }
   );
   return res && res.value !== undefined ? res.value : res;

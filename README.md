@@ -309,8 +309,11 @@ npm run dashboard        # http://127.0.0.1:4000
    pitch; has-site leads get a lost-customers pitch. A 403/500/unreachable site
    is flagged `needsVerification`: the drawer shows a **verify first** banner
    and the copy **must not** claim the site is down.
-3. **Generate mockup** — a self-contained HTML homepage (inline CSS, no
-   external requests) served at `/mockup/:placeId`. Preview opens in a new tab.
+3. **Generate mockup** — builds a `window.SITE` config (facts + copy + up to
+   5 Google reviews) and stores it on the lead as `mockup.config`. Preview
+   the checked-in template at `/preview/:placeId/`. With R2 configured,
+   **Publish** uploads the template plus `config.js` and **Copy public URL**
+   copies the live link (also injected into the outreach email CTA).
 4. Pick a **contact channel** (phone / email / DM / in person) and mark
    **Contacted**. Nothing is sent for you.
 
@@ -318,23 +321,77 @@ On-demand **Deep audit** (real Lighthouse via unlighthouse) is a separate
 button on one lead at a time. It is **never** part of the worker or bulk
 import — those stay on the fast DIY fetch audit.
 
-### Mockup hosting caveat
+### Mockups (M4)
 
-The generated HTML is stored on the lead (`lead.mockup.html`) and previewed
-locally. `lead.mockup.publicUrl` stays **`null` until you host it yourself**
-(drop the HTML on Netlify/Cloudflare Pages/your own domain) and paste that
-URL back if you want to include a live link in outreach. The app does not
-publish mockups.
+One mechanism: a checked-in template personalized by `window.SITE`. The app
+does **not** generate HTML per lead. Template files on disk, in `/preview/`,
+and on R2 are byte-identical; only `config.js` changes.
+
+**Template + contract**
+
+- Files live in `template/accountant/` (`index.html`, `about.html`, `styles.css`,
+  `app.js`, plus an example `config.js`).
+- `app.js` reads `window.SITE` and binds with `textContent` (no `innerHTML` of
+  lead copy).
+- Shape:
+
+```js
+window.SITE = {
+  business: { name, category, phone, tel, address, mapsUrl, area, rating, reviewCount },
+  copy: { heroHeadline, heroSub, about, services: [{ title, desc }], faq: [{ q, a }] },
+  reviews: [{ author, rating, text, relativeTime }],
+  meta: { preview: true, generatedAt, placeId }
+}
+```
+
+**Flow**
+
+1. Dashboard **Generate mockup** → `POST /api/mockup` → `buildSiteConfig` →
+   `lead.mockup.config` (never `lead.mockup.html`).
+2. **Preview** → `GET /preview/:placeId/` (and `/about.html`, `/styles.css`,
+   `/app.js`, `/config.js`). Local-only, `noindex`.
+3. **Publish** → `POST /api/publish` uploads template files + generated
+   `config.js` to `{placeId}/` in R2. Public URL is
+   `${MOCKUP_PUBLIC_BASE}/{placeId}/index.html` (R2 has no directory index).
+4. **Copy public URL** / Prepare outreach — email CTA uses that `publicUrl`.
+
+**R2 setup** (needed to publish; preview works without it)
+
+```bash
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET=
+MOCKUP_PUBLIC_BASE=https://<public-bucket-host>   # no trailing slash
+```
+
+Optional custom domain: point it at the bucket and put that origin in
+`MOCKUP_PUBLIC_BASE`. Re-publish overwrites the same keys. If any R2 var is
+missing, `r2Enabled()` is false and publish is skipped (no error).
+
+**Preview-only policy**
+
+These pages are sales demos, not live client sites:
+
+- `noindex, nofollow` on preview and a visible **Preview / mockup** banner.
+- Review quotes are attributed **Reviews via Google**.
+- Wind the published objects down after the demo (delete the `{placeId}/`
+  prefix in R2). Do not leave mockups indexed or implied as production sites.
+
+`GET /mockup/:placeId` redirects to `/preview/:placeId/`.
 
 ### Verify
 
 ```bash
 npm test                      # unit tests (scoring, compose mock, mockup isolation)
 npm run verify:outreach       # live OpenAI + Mongo: no-website / has-site / 403
+npm run verify:mockup         # config + preview (escaped, no external requests); R2 200 if env set
 ```
 
 `verify:outreach` refuses to pass without `OPENAI_API_KEY` and a populated
-leads collection.
+leads collection. `verify:mockup` needs Mongo leads; R2 checks run only when
+the R2 env vars above are set (the script also proves publish is skipped when
+they are empty).
 
 ## Roadmap
 
