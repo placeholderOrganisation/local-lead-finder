@@ -1,5 +1,6 @@
-// Prospect homepage mockup (#34). On-demand, self-contained HTML (no external
-// requests). OpenAI when a key is present; a deterministic template otherwise.
+// Prospect site config (#41). Builds a window.SITE object for the checked-in
+// template — facts from the lead + OpenAI copy (hero/about/services/faq).
+// Deterministic fallback when no key / on error. No HTML is generated.
 
 import OpenAI from "openai";
 import { getOpenAIKey, getOpenAIModel, getOpenAIBaseURL, getOutreachProfile } from "./env.js";
@@ -7,180 +8,198 @@ import { saveMockup } from "./store.js";
 
 /**
  * @param {object} lead
- * @returns {Promise<{html:string, generatedAt:string, model:string}>}
+ * @returns {Promise<object>} window.SITE per the #40 contract (reviews: [] until #42)
  */
-export async function generateMockup(lead) {
+export async function buildSiteConfig(lead) {
   const profile = getOutreachProfile();
-  const key = getOpenAIKey();
+  const facts = factsOf(lead, profile);
   const generatedAt = new Date().toISOString();
-  let html;
+  const placeId = lead?._id || lead?.placeId || "";
+  let copy;
   let model = "mock";
 
+  const key = getOpenAIKey();
   if (key) {
     try {
-      const live = await liveMockup(lead, profile, key);
-      html = live.html;
+      const live = await liveCopy(facts, lead, profile, key);
+      copy = live.copy;
       model = live.model;
     } catch (err) {
-      console.warn(`[mockup] OpenAI failed (${err.message}); using template fallback`);
-      html = templateMockup(lead, profile);
+      console.warn(`[mockup] OpenAI failed (${err.message}); using fallback copy`);
+      copy = fallbackCopy(facts, lead, profile);
     }
   } else {
-    html = templateMockup(lead, profile);
+    copy = fallbackCopy(facts, lead, profile);
   }
 
-  html = ensureSelfContained(html, lead, profile);
-  const out = { html, generatedAt, model };
+  const site = {
+    business: facts,
+    copy,
+    reviews: [],
+    meta: { preview: true, generatedAt, placeId, model },
+  };
 
-  const placeId = lead?._id || lead?.placeId;
   if (placeId && placeId !== "x") {
     try {
-      await saveMockup(placeId, out);
+      await saveMockup(placeId, { config: site, generatedAt, model });
     } catch (err) {
       console.warn(`[mockup] persist skipped (${err.message})`);
     }
   }
-  return out;
+  return site;
 }
 
-async function liveMockup(lead, profile, apiKey) {
-  const model = getOpenAIModel();
-  const client = new OpenAI({ apiKey, baseURL: getOpenAIBaseURL() });
-  const ctx = ctxOf(lead, profile);
-  const completion = await client.chat.completions.create({
-    model,
-    temperature: 0.7,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: JSON.stringify(ctx) },
-    ],
-  });
-  let html = completion.choices?.[0]?.message?.content || "";
-  html = unwrapFence(html);
-  return { html, model };
-}
-
-const SYSTEM_PROMPT = `You generate a single self-contained HTML homepage for a local business.
-Return ONLY HTML, starting with <!DOCTYPE html>. No markdown, no code fences, no commentary.
-
-Hard rules:
-- Inline ALL CSS in a <style> tag. No <link>, no @import, no external stylesheets.
-- No external requests of any kind: no Google Fonts, no CDNs, no <script src>, no <img src="http…">.
-  Use system fonts and CSS gradients / inline SVG for visuals.
-- Use the real business name, category, phone, and local area from the payload.
-- Modern, mobile-first, clear CTAs (Call + a quote/contact action using tel: or a #contact form that does not POST anywhere).
-- Reasonable size: one page, hero + services + about + contact/footer.`;
-
-function ctxOf(lead, profile) {
+/** Lead facts that fill window.SITE.business. */
+export function factsOf(lead, profile = getOutreachProfile()) {
+  const name = str(lead?.business || lead?.name) || "Local business";
+  const phone = str(lead?.phone);
+  const ratingRaw = lead?.rating;
+  const countRaw = lead?.reviewCount ?? lead?.reviews;
+  const rating = Number(ratingRaw);
+  const reviewCount = Number(countRaw);
   return {
-    business: lead?.business || lead?.name || "Local Business",
-    category: lead?.category || "Local service",
-    phone: lead?.phone || "",
-    address: lead?.address || "",
-    localArea: profile.localArea || "",
-    website: lead?.website || "",
+    name,
+    category: str(lead?.category) || "Local service",
+    phone,
+    tel: telOf(phone),
+    address: str(lead?.address),
+    mapsUrl: str(lead?.mapsUrl),
+    area: str(profile.localArea) || areaFromAddress(lead?.address),
+    rating: Number.isFinite(rating) && rating > 0 ? rating : null,
+    reviewCount: Number.isFinite(reviewCount) && reviewCount > 0 ? reviewCount : null,
   };
 }
 
-function unwrapFence(html) {
-  const s = String(html || "").trim();
-  const m = s.match(/^```(?:html)?\s*([\s\S]*?)```$/i);
-  return (m ? m[1] : s).trim();
+/** Deterministic money-framed copy — used when OPENAI_API_KEY is absent, and by tests. */
+export function fallbackCopy(facts, lead = {}, profile = getOutreachProfile()) {
+  const name = facts.name;
+  const cat = (facts.category || "local service").toLowerCase();
+  const area = facts.area || "your neighbourhood";
+  const phone = facts.phone;
+  const hasSite = Boolean(lead?.website);
+  const heroHeadline = hasSite
+    ? `${name} — the first impression that actually gets the call`
+    : `${name} — look as established as the work you already do`;
+  const heroSub = phone
+    ? `${cat} in ${area}. Tap to call ${phone} — we'll take it from there.`
+    : `${cat} in ${area}. The neighbours who don't already have your number can finally find you.`;
+  const about = hasSite
+    ? `${name} already has customers — the leak is the people who find you on a phone and bounce before they tap Call. A clearer homepage in ${area} turns those lookers into booked jobs, with your real name, number, and what you actually do — not a generic template.`
+    : `${name} only exists today if someone already has the number. Everyone else Googles a ${cat} in ${area} and books whoever looks legitimate. This page is that first impression: your name, your number, and a reason to call you instead of the competitor with a site.`;
+  return {
+    heroHeadline,
+    heroSub,
+    about,
+    services: [
+      { title: "Show up when they search", desc: `People in ${area} looking for a ${cat} land here — not on a competitor's page.` },
+      { title: "Make the phone tap obvious", desc: "A big Call button and your real number. No hunting through a tiny menu on a phone." },
+      { title: "Look like the established choice", desc: "Your name, what you do, and who you help — so a stranger trusts you before they dial." },
+    ],
+    faq: [
+      { q: "Is this the live website?", a: "No — this is a preview / mockup so you can see the direction before anything goes live." },
+      { q: "Do I have to keep this design?", a: "No. This is a starting point. We change copy, colours, and pages to match how you actually work." },
+      { q: "How do people reach us?", a: phone ? `Call ${phone}. The button on this page dials the office.` : "Call the office — the number on this page is yours." },
+    ],
+  };
 }
 
-const EXTERNAL_RX =
-  /<(?:link|script|iframe|img)\b[^>]*(?:href|src)\s*=\s*["']https?:/i;
-const URL_HTTP_RX = /url\(\s*['"]?https?:/i;
-const IMPORT_RX = /@import\b/i;
-
-export function hasExternalRequests(html) {
-  const s = String(html || "");
-  if (EXTERNAL_RX.test(s)) return true;
-  if (URL_HTTP_RX.test(s)) return true;
-  if (IMPORT_RX.test(s)) return true;
-  if (/fonts\.googleapis|cdn\.jsdelivr|unpkg\.com|fonts\.gstatic/i.test(s)) return true;
-  return false;
+export function fallbackSiteConfig(lead, profile = getOutreachProfile()) {
+  const facts = factsOf(lead, profile);
+  return {
+    business: facts,
+    copy: fallbackCopy(facts, lead, profile),
+    reviews: [],
+    meta: {
+      preview: true,
+      generatedAt: new Date().toISOString(),
+      placeId: lead?._id || lead?.placeId || "",
+      model: "mock",
+    },
+  };
 }
 
-function ensureSelfContained(html, lead, profile) {
-  let out = unwrapFence(html);
-  out = out.replace(/<(?:link|script|iframe|img)\b[^>]*(?:href|src)\s*=\s*["']https?:[^>]*>/gi, "")
-    .replace(/url\(\s*['"]?https?:[^)]+\)/gi, "none")
-    .replace(/@import[^;]+;/gi, "");
-  if (!out || !/<(?:!doctype|html|body)/i.test(out) || hasExternalRequests(out)) {
-    return templateMockup(lead, profile);
+async function liveCopy(facts, lead, profile, apiKey) {
+  const model = getOpenAIModel();
+  const client = new OpenAI({ apiKey, baseURL: getOpenAIBaseURL() });
+  const ctx = {
+    name: facts.name,
+    category: facts.category,
+    phone: facts.phone,
+    address: facts.address,
+    area: facts.area,
+    hasWebsite: Boolean(lead?.website),
+    rating: facts.rating,
+    reviewCount: facts.reviewCount,
+  };
+  const completion = await client.chat.completions.create({
+    model,
+    temperature: 0.7,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: COPY_PROMPT },
+      { role: "user", content: JSON.stringify(ctx) },
+    ],
+  });
+  const raw = completion.choices?.[0]?.message?.content || "{}";
+  const parsed = JSON.parse(raw);
+  return { copy: normalizeCopy(parsed, facts, lead, profile), model };
+}
+
+const COPY_PROMPT = `You write website copy for a local-business homepage mockup. Return JSON with keys:
+heroHeadline (string), heroSub (string), about (string, 2–4 sentences),
+services (array of 3–5 {title, desc}), faq (array of 3–4 {q, a}).
+
+Rules:
+- Money and customers, never raw tech. Forbidden: viewport, LCP, HTTP 403, HTTP 500, meta tags, "SEO audit", TLS, "mobile-friendly", "responsive design", "page speed".
+- Use the real business name, category, phone, and area from the payload. heroHeadline MUST include the business name.
+- Specific, local, and about booked calls / customers — not lorem, not "your trusted partner", not "stress-free".
+- If hasWebsite is false, the angle is legitimacy: strangers who don't already have the number.
+- If hasWebsite is true, the angle is lost phone-customers who bounce before they tap Call.
+- about is a first-person-plural firm story, not a sales email.
+- services are what the BUSINESS sells (not "web design"). Infer sensible local-service offerings from the category.
+- faq[0] must make clear this page is a preview / mockup, not the live site.
+- No placeholders like [Business] or TODO.`;
+
+function normalizeCopy(parsed, facts, lead, profile) {
+  const fb = fallbackCopy(facts, lead, profile);
+  const services = Array.isArray(parsed.services) ? parsed.services : fb.services;
+  const faq = Array.isArray(parsed.faq) ? parsed.faq : fb.faq;
+  const copy = {
+    heroHeadline: str(parsed.heroHeadline) || fb.heroHeadline,
+    heroSub: str(parsed.heroSub || parsed.heroSubhead) || fb.heroSub,
+    about: str(parsed.about) || fb.about,
+    services: services
+      .map((s) => ({ title: str(s?.title), desc: str(s?.desc || s?.body || s?.description) }))
+      .filter((s) => s.title)
+      .slice(0, 6),
+    faq: faq
+      .map((x) => ({ q: str(x?.q || x?.question), a: str(x?.a || x?.answer) }))
+      .filter((x) => x.q)
+      .slice(0, 6),
+  };
+  if (!copy.services.length) copy.services = fb.services;
+  if (!copy.faq.length) copy.faq = fb.faq;
+  const name = facts.name;
+  if (name && copy.heroHeadline && !copy.heroHeadline.toLowerCase().includes(name.toLowerCase())) {
+    copy.heroHeadline = `${name} — ${copy.heroHeadline}`;
   }
-  return out;
+  return copy;
 }
 
-export function templateMockup(lead, profile = getOutreachProfile()) {
-  const ctx = ctxOf(lead, profile);
-  const name = esc(ctx.business);
-  const cat = esc(ctx.category);
-  const area = esc(ctx.localArea || "your neighbourhood");
-  const phone = esc(ctx.phone);
-  const tel = ctx.phone ? `tel:${ctx.phone.replace(/[^\d+]/g, "")}` : "#contact";
-  const addr = esc(ctx.address);
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${name} — ${cat} in ${area}</title>
-<style>
-  :root { --ink:#122033; --muted:#5b6b7c; --bg:#f6f3ee; --card:#fff; --accent:#0f6e56; --accent2:#c9783a; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; color:var(--ink); background:var(--bg); line-height:1.5; }
-  header { display:flex; justify-content:space-between; align-items:center; padding:1rem 6vw; background:#fff; border-bottom:1px solid #e6e0d6; }
-  .brand { font-weight:800; letter-spacing:-.02em; }
-  nav a { margin-left:1rem; color:var(--ink); text-decoration:none; font-size:.95rem; }
-  .hero { padding:12vh 6vw 8vh; background: radial-gradient(1200px 400px at 10% -10%, #d9efe7, transparent), linear-gradient(180deg,#fff,var(--bg)); }
-  .hero small { color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
-  h1 { font-size:clamp(2rem,5vw,3.4rem); line-height:1.1; margin:.4rem 0 1rem; letter-spacing:-.03em; }
-  .cta { display:inline-block; background:var(--accent); color:#fff; text-decoration:none; padding:.85rem 1.2rem; border-radius:999px; font-weight:700; margin-right:.6rem; }
-  .cta.alt { background:transparent; color:var(--ink); border:1px solid #cfc6b8; }
-  section { padding:4rem 6vw; }
-  .grid { display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
-  .card { background:var(--card); border-radius:16px; padding:1.3rem; box-shadow:0 8px 24px #0000000d; }
-  footer { padding:2rem 6vw 3rem; color:var(--muted); font-size:.9rem; }
-</style>
-</head>
-<body>
-<header>
-  <div class="brand">${name}</div>
-  <nav><a href="#services">Services</a><a href="#contact">Contact</a></nav>
-</header>
-<section class="hero">
-  <small>${cat} · ${area}</small>
-  <h1>${name} — trusted ${cat.toLowerCase()} care, close to home.</h1>
-  <p>A cleaner first impression for people searching on their phone. Call today${phone ? ` at ${phone}` : ""} and get a same-week appointment.</p>
-  <p><a class="cta" href="${tel}">Call now</a><a class="cta alt" href="#contact">Request a quote</a></p>
-</section>
-<section id="services">
-  <h2>How we help</h2>
-  <div class="grid">
-    <div class="card"><h3>Clear next step</h3><p>Tap to call, tap to book. No hunting for a number on a tiny screen.</p></div>
-    <div class="card"><h3>Local &amp; real</h3><p>Named, local, and easy to trust — for people in ${area} who don’t already have your number.</p></div>
-    <div class="card"><h3>Built around ${cat.toLowerCase()}</h3><p>Copy and layout that match what you actually sell, not a generic template.</p></div>
-  </div>
-</section>
-<section id="contact">
-  <h2>Visit or call</h2>
-  <div class="card">
-    ${addr ? `<p>${addr}</p>` : ""}
-    ${phone ? `<p><a href="${tel}">${phone}</a></p>` : `<p>Call us to book.</p>`}
-    <p>Serving ${area}.</p>
-  </div>
-</section>
-<footer>© ${new Date().getFullYear()} ${name}. Homepage mockup — preview only, not yet hosted.</footer>
-</body>
-</html>`;
+export function telOf(phone) {
+  if (!phone) return "";
+  let cleaned = String(phone).replace(/[^\d+]/g, "");
+  cleaned = cleaned.replace(/(?!^\+)\+/g, "");
+  return cleaned ? `tel:${cleaned}` : "";
 }
 
-function esc(s) {
-  return String(s || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+function areaFromAddress(address) {
+  const s = str(address);
+  if (!s) return "";
+  const m = s.match(/,\s*([^,]+),\s*[A-Z]{2}\b/) || s.match(/,\s*([^,]+),\s*Canada/i);
+  return m ? m[1].trim() : "";
+}
+
+function str(v) {
+  return v == null ? "" : String(v).trim();
 }

@@ -10,7 +10,7 @@ import { getOpenAIKey } from "../src/env.js";
 import { listLeads, getLead } from "../src/store.js";
 import { close } from "../src/db.js";
 import { prepareOutreach } from "../src/compose.js";
-import { generateMockup } from "../src/mockup.js";
+import { buildSiteConfig } from "../src/mockup.js";
 import { auditSite } from "../src/audit.js";
 
 const TECH = /viewport|lcp\b|http\s*403|http\s*500|meta tags|seo audit|\btls\b|mobile-friendly tag/i;
@@ -80,26 +80,32 @@ async function main() {
   ok(!DOWN.test(blobOf(verify)), "403 copy makes no site-down claim");
   printAssets("needsVerification (403)", verifyLead, verify);
 
-  console.log("\n[3] Mockup is self-contained (no external requests)");
-  const mock = await generateMockup(hasSite);
-  ok(Boolean(mock.html) && /<!DOCTYPE html>/i.test(mock.html), "mockup is HTML");
-  const externals = [...mock.html.matchAll(EXT_URL)].map((m) => m[1]).filter((u) => !u.startsWith("data:"));
-  ok(externals.length === 0, `no external URLs in mockup (${externals.slice(0, 3).join(", ") || "none"})`);
+  console.log("\n[3] Mockup config (template + window.SITE, no HTML blob)");
+  const site = await buildSiteConfig(hasSite);
+  ok(site?.business?.name && site?.copy?.heroHeadline, "SITE has facts + copy");
+  ok(Array.isArray(site.reviews) && site.reviews.length === 0, "reviews empty until #42");
+  ok(!site.html, "no HTML blob on the SITE object");
+  ok(!TECH.test(JSON.stringify(site.copy)), "copy avoids raw tech jargon");
 
   const stored = await getLead(hasSite._id);
-  ok(stored?.mockup?.html, "mockup persisted on the lead");
-  ok(stored.mockup.publicUrl == null, "publicUrl stays null until manually hosted");
+  ok(stored?.mockup?.config?.copy?.heroHeadline, "mockup.config persisted on the lead");
+  ok(!stored.mockup.html, "no HTML blob stored on the lead");
+  ok(stored.mockup.publicUrl == null, "publicUrl stays null until hosted");
 
   const dash = process.env.DASHBOARD_URL || `http://127.0.0.1:${process.env.PORT || 4000}`;
   try {
-    const page = await fetch(`${dash}/mockup/${encodeURIComponent(hasSite._id)}`);
-    ok(page.ok, `GET ${dash}/mockup/:placeId → ${page.status}`);
+    const page = await fetch(`${dash}/preview/${encodeURIComponent(hasSite._id)}/`);
+    ok(page.ok, `GET ${dash}/preview/:placeId/ → ${page.status}`);
     const html = await page.text();
-    const again = [...html.matchAll(EXT_URL)].map((m) => m[1]).filter((u) => !u.startsWith("data:"));
-    ok(again.length === 0, "served mockup has no external URLs");
+    ok(/noindex/i.test(html), "preview is noindex");
+    ok(/preview-banner/i.test(html), "preview banner present");
+    const cfg = await fetch(`${dash}/preview/${encodeURIComponent(hasSite._id)}/config.js`);
+    const js = await cfg.text();
+    ok(js.includes(stored.mockup.config.business.name), "injected config.js has the business name");
+    ok(!js.includes("</script>"), "injected config.js is XSS-safe");
   } catch (e) {
     console.log(`  skip - dashboard not reachable at ${dash} (${e.message})`);
-    console.log("  (mockup HTML was still generated and persisted; start `npm run dashboard` to serve it)");
+    console.log("  (config was still generated and persisted; start `npm run dashboard` to preview it)");
   }
 
   console.log(`\nALL ${passed} PHASE-3 E2E CHECKS PASSED`);

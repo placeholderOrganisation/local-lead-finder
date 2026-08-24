@@ -12,7 +12,7 @@ import { listLeads, stats, updateLead, getLead, saveLighthouse, saveAssets, save
 import { ensureIndexes, close } from "./db.js";
 import { deepAudit } from "./deepaudit.js";
 import { prepareOutreach } from "./compose.js";
-import { generateMockup } from "./mockup.js";
+import { buildSiteConfig } from "./mockup.js";
 import {
   emptySiteConfig,
   mimeFor,
@@ -101,9 +101,13 @@ async function handle(req, res) {
       if (!body || !body.placeId) return sendJson(res, 400, { error: "placeId required" });
       const lead = await getLead(body.placeId);
       if (!lead) return sendJson(res, 404, { error: "lead not found" });
-      const mockup = await generateMockup(lead);
-      const doc = await saveMockup(body.placeId, mockup);
-      return sendJson(res, 200, { ok: true, url: `/mockup/${encodeURIComponent(body.placeId)}`, lead: doc });
+      const config = await buildSiteConfig(lead);
+      const doc = await saveMockup(body.placeId, {
+        config,
+        generatedAt: config.meta?.generatedAt,
+        model: config.meta?.model,
+      });
+      return sendJson(res, 200, { ok: true, url: `/preview/${encodeURIComponent(body.placeId)}/`, lead: doc });
     }
 
     return sendJson(res, 404, { error: "not found" });
