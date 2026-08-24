@@ -13,6 +13,7 @@ import { ensureIndexes, close } from "./db.js";
 import { deepAudit } from "./deepaudit.js";
 import { prepareOutreach } from "./compose.js";
 import { buildSiteConfig } from "./mockup.js";
+import { r2Enabled, publishMockup } from "./r2.js";
 import {
   emptySiteConfig,
   mimeFor,
@@ -89,7 +90,8 @@ async function handle(req, res) {
       if (!body || !body.placeId) return sendJson(res, 400, { error: "placeId required" });
       const lead = await getLead(body.placeId);
       if (!lead) return sendJson(res, 404, { error: "lead not found" });
-      const assets = await prepareOutreach(lead);
+      const ready = await ensureMockup(lead, { publish: r2Enabled() });
+      const assets = await prepareOutreach(ready.lead);
       const doc = await saveAssets(body.placeId, assets);
       return sendJson(res, 200, { assets, lead: doc });
     }
@@ -101,19 +103,75 @@ async function handle(req, res) {
       if (!body || !body.placeId) return sendJson(res, 400, { error: "placeId required" });
       const lead = await getLead(body.placeId);
       if (!lead) return sendJson(res, 404, { error: "lead not found" });
-      const config = await buildSiteConfig(lead);
-      const doc = await saveMockup(body.placeId, {
-        config,
-        generatedAt: config.meta?.generatedAt,
-        model: config.meta?.model,
+      const out = await ensureMockup(lead, { regenerate: true, publish: r2Enabled() });
+      return sendJson(res, 200, {
+        ok: true,
+        previewUrl: out.previewUrl,
+        publicUrl: out.publicUrl,
+        lead: out.lead,
       });
-      return sendJson(res, 200, { ok: true, url: `/preview/${encodeURIComponent(body.placeId)}/`, lead: doc });
+    }
+
+    if (route === "POST /api/publish") {
+      if (!isLocalRequest(req)) return sendJson(res, 403, { error: "forbidden origin" });
+      req.setTimeout(60_000);
+      const body = await readJson(req);
+      if (!body || !body.placeId) return sendJson(res, 400, { error: "placeId required" });
+      if (!r2Enabled()) return sendJson(res, 400, { error: "R2 is not configured" });
+      const lead = await getLead(body.placeId);
+      if (!lead) return sendJson(res, 404, { error: "lead not found" });
+      const out = await ensureMockup(lead, { regenerate: !lead.mockup?.config, publish: true });
+      let doc = out.lead;
+      if (out.publicUrl) {
+        const assets = await prepareOutreach(doc);
+        doc = await saveAssets(body.placeId, assets);
+      }
+      return sendJson(res, 200, {
+        ok: true,
+        previewUrl: out.previewUrl,
+        publicUrl: out.publicUrl,
+        lead: doc,
+        assets: doc?.assets || null,
+      });
     }
 
     return sendJson(res, 404, { error: "not found" });
   } catch (e) {
     return sendJson(res, 500, { error: e.message });
   }
+}
+
+/**
+ * Build (if needed) and optionally publish a mockup. Used by generate, publish,
+ * and prepare so the email CTA always sees a real publicUrl when R2 is on.
+ */
+async function ensureMockup(lead, { regenerate = false, publish = false } = {}) {
+  const placeId = lead._id || lead.placeId;
+  let config = !regenerate && lead.mockup?.config ? lead.mockup.config : null;
+  const built = !config;
+  if (!config) {
+    config = await buildSiteConfig(lead);
+  }
+  const payload = {
+    config,
+    generatedAt: config.meta?.generatedAt || lead.mockup?.generatedAt,
+    model: config.meta?.model || lead.mockup?.model,
+  };
+  // Always persist a newly built config so /preview works even when R2 is off.
+  if (built) await saveMockup(placeId, payload);
+
+  let publicUrl = lead.mockup?.publicUrl || null;
+  if (publish && r2Enabled()) {
+    publicUrl = await publishMockup(placeId, config, lead.category);
+    await saveMockup(placeId, { ...payload, publicUrl });
+  }
+  const fresh = (await getLead(placeId)) || lead;
+  return {
+    config,
+    publicUrl: fresh.mockup?.publicUrl || publicUrl || null,
+    previewUrl: `/preview/${encodeURIComponent(placeId)}/`,
+    lead: fresh,
+  };
 }
 
 /**

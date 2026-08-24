@@ -38,9 +38,11 @@ export function mockOutreach(lead, profile = getOutreachProfile()) {
   const generatedAt = new Date().toISOString();
   const model = "mock";
 
-  if (ctx.needsVerification) return withStubs({ ...verifyFirst(ctx), model, generatedAt }, ctx);
-  if (ctx.hasWebsite) return withStubs({ ...hasSite(ctx), model, generatedAt }, ctx);
-  return withStubs({ ...noSite(ctx), model, generatedAt }, ctx);
+  let assets;
+  if (ctx.needsVerification) assets = withStubs({ ...verifyFirst(ctx), model, generatedAt }, ctx);
+  else if (ctx.hasWebsite) assets = withStubs({ ...hasSite(ctx), model, generatedAt }, ctx);
+  else assets = withStubs({ ...noSite(ctx), model, generatedAt }, ctx);
+  return injectMockupUrl(assets, ctx);
 }
 
 async function liveOutreach(lead, profile, apiKey) {
@@ -77,7 +79,7 @@ async function liveOutreach(lead, profile, apiKey) {
     parsed = JSON.parse(retry.choices?.[0]?.message?.content || "{}");
     out = normalizeLive(parsed, ctx, model, generatedAt, { fallbackMock: true });
   }
-  return out;
+  return injectMockupUrl(out, ctx);
 }
 
 const SYSTEM_PROMPT = `You write outbound sales copy for a local web designer. Return a JSON object with keys:
@@ -203,11 +205,14 @@ function contextOf(lead, profile) {
 }
 
 function noSite(ctx) {
-  const { business, senderName, localArea, portfolioUrl, calendarUrl } = ctx;
+  const { business, senderName, localArea, portfolioUrl, calendarUrl, mockupUrl } = ctx;
   const who = senderName || "a local web designer";
   const area = localArea || "local";
   const moneyPitch =
     `${business} is invisible to anyone who doesn't already know them — Google sends those customers to a competitor who looks more established. A simple site in ${area} captures the work referrals miss.`;
+  const cta = mockupUrl
+    ? `I put together a homepage mock so you can see what "looking legit" would feel like for ${business}: ${mockupUrl}`
+    : `I put together a homepage mock so you can see what "looking legit" would feel like for ${business}. No obligation.`;
   const proof = portfolioUrl ? `\n\nA couple of local sites I've shipped: ${portfolioUrl}` : "";
   const cal = calendarUrl ? `\n\nIf it's easier, grab a time here: ${calendarUrl}` : "";
   return {
@@ -217,7 +222,7 @@ function noSite(ctx) {
       body:
         `Hi — I'm ${who}. I help ${area} businesses pick up the customers who never get a referral.\n\n` +
         `Right now ${business} only exists if someone already has your number. People searching on their phone land on whoever looks legit — and that's usually a competitor.\n\n` +
-        `I put together a homepage mock so you can see what "looking legit" would feel like for ${business}. No obligation.` +
+        cta +
         proof + cal + `\n\n${who}`,
     },
     phoneScript:
@@ -255,7 +260,7 @@ function hasSite(ctx) {
 }
 
 function verifyFirst(ctx) {
-  const { business, senderName, localArea, portfolioUrl, calendarUrl } = ctx;
+  const { business, senderName, localArea, portfolioUrl, calendarUrl, mockupUrl } = ctx;
   const who = senderName || "a local web designer";
   const area = localArea || "local";
   const moneyPitch =
@@ -269,6 +274,7 @@ function verifyFirst(ctx) {
       body:
         `Hi — I'm ${who}${localArea ? ` in ${localArea}` : ""}. I help local businesses turn phone-searchers into booked jobs.\n\n` +
         `I don't want to guess about your current site — I'd rather look at it with you first. I did sketch a homepage in your name so you have something concrete to react to, no claims attached.` +
+        (mockupUrl ? ` ${mockupUrl}` : "") +
         proof + cal + `\n\n${who}`,
     },
     phoneScript:
@@ -296,4 +302,18 @@ function splitIssues(v) {
 
 function str(v) {
   return v == null ? "" : String(v);
+}
+
+/** If a live publicUrl exists, the email body must contain it — never a null/placeholder CTA. */
+function injectMockupUrl(out, ctx) {
+  const url = ctx.mockupUrl;
+  if (!url || !out?.emailDraft) return out;
+  if (String(out.emailDraft.body || "").includes(url)) return out;
+  return {
+    ...out,
+    emailDraft: {
+      ...out.emailDraft,
+      body: `${String(out.emailDraft.body || "").trimEnd()}\n\nSee the homepage mock: ${url}`,
+    },
+  };
 }

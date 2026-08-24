@@ -59,6 +59,22 @@ test("needsVerification lead makes NO site-down claim", () => {
   assert.ok(/haven't verified|not going to claim|rather look/i.test(blob));
 });
 
+test("email CTA includes mockup.publicUrl when present and never a null placeholder", () => {
+  const url = "https://pub.example.test/ChIJ123/index.html";
+  const none = mockOutreach(
+    { business: "Ash Tax", website: "", issues: "no website", mockup: { publicUrl: url } },
+    profile
+  );
+  const has = mockOutreach(
+    { business: "Ash Tax", website: "https://ashtax.ca", mockup: { publicUrl: url } },
+    profile
+  );
+  assert.ok(none.emailDraft.body.includes(url), "no-website email carries the public URL");
+  assert.ok(has.emailDraft.body.includes(url), "has-site email carries the public URL");
+  const missing = mockOutreach({ business: "Ash Tax", website: "", issues: "no website" }, profile);
+  assert.ok(!/\bnull\b/.test(missing.emailDraft.body), "no publicUrl must not emit the string null");
+});
+
 test("verified lighthouse score is cited in the has-site moneyPitch", () => {
   const x = mockOutreach(
     {
