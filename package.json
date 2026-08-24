@@ -20,6 +20,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1116.0",
     "mongodb": "^7.5.0",
     "openai": "^5.23.2",
     "unlighthouse": "^0.18.0"

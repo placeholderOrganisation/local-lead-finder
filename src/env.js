@@ -126,3 +126,24 @@ export function getOutreachProfile() {
     calendarUrl: (process.env.CALENDAR_URL || "").trim(),
   };
 }
+
+/**
+ * Cloudflare R2 (S3 API) config for mockup hosting (#43).
+ * @returns {{accountId:string, accessKeyId:string, secretAccessKey:string, bucket:string, publicBase:string}}
+ */
+export function getR2Config() {
+  loadEnv();
+  return {
+    accountId: r2Val(process.env.R2_ACCOUNT_ID),
+    accessKeyId: r2Val(process.env.R2_ACCESS_KEY_ID),
+    secretAccessKey: r2Val(process.env.R2_SECRET_ACCESS_KEY),
+    bucket: r2Val(process.env.R2_BUCKET),
+    publicBase: r2Val(process.env.MOCKUP_PUBLIC_BASE).replace(/\/+$/, ""),
+  };
+}
+
+function r2Val(v) {
+  const s = String(v || "").trim();
+  if (!s || /^your-|^<.*>$/i.test(s)) return "";
+  return s;
+}

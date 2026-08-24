@@ -187,28 +187,28 @@ export async function getLead(placeId) {
 
 /**
  * Persist a generated mockup on the lead. Does not touch CRM/outreach state.
- * Stores the window.SITE config object (#41), not an HTML blob.
- * publicUrl is forced null here; #43 stops that once R2 publish is live.
+ * Stores the window.SITE config. `publicUrl` is written only when provided
+ * (no longer forced to null — regenerating copy must not wipe a published URL).
  * @param {string} placeId
- * @param {{config:object, generatedAt:string, model?:string}} mockup
+ * @param {{config:object, generatedAt:string, model?:string, publicUrl?:string|null}} mockup
  * @returns {Promise<object|null>}
  */
 export async function saveMockup(placeId, mockup) {
   if (!placeId || !mockup?.config) return null;
   const leads = await getColl("leads");
+  const now = new Date();
+  const set = {
+    "mockup.config": mockup.config,
+    "mockup.generatedAt": mockup.generatedAt || now.toISOString(),
+    "mockup.model": mockup.model || null,
+    updatedAt: now,
+  };
+  if (Object.prototype.hasOwnProperty.call(mockup, "publicUrl")) {
+    set["mockup.publicUrl"] = mockup.publicUrl || null;
+  }
   const res = await leads.findOneAndUpdate(
     { _id: placeId },
-    {
-      $set: {
-        mockup: {
-          config: mockup.config,
-          generatedAt: mockup.generatedAt || new Date().toISOString(),
-          publicUrl: null,
-          model: mockup.model || null,
-        },
-        updatedAt: new Date(),
-      },
-    },
+    { $set: set },
     { returnDocument: "after" }
   );
   return res && res.value !== undefined ? res.value : res;
