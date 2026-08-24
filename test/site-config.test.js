@@ -57,6 +57,9 @@ test("accountant template is a Next static-export SPA (#50)", () => {
   const doc = readFileSync(join(ROOT, "template/accountant/pages/_document.tsx"), "utf8");
   assert.match(doc, /noindex/);
   const app = readFileSync(join(ROOT, "template/accountant/components/site-app.tsx"), "utf8");
-  assert.match(app, /Reviews via Google/);
   assert.doesNotMatch(app, /next\/link/);
+  const emerald = readFileSync(join(ROOT, "template/accountant/components/designs/emerald.tsx"), "utf8");
+  assert.match(emerald, /Reviews via Google/);
+  assert.match(readFileSync(join(ROOT, "template/accountant/pages/about.tsx"), "utf8"), /SiteApp/);
+  assert.match(readFileSync(join(ROOT, "template/accountant/pages/contact.tsx"), "utf8"), /SiteApp/);
 });

@@ -39,7 +39,7 @@ No server-only Next feature remained that would force a design-agent rework.
    - `/{placeId}/contact/` contact
 4. `placeId` = first pathname segment (skips a leading `preview` so local `/preview/{placeId}/` works). Fetches **`/{placeId}/config.json`** at runtime. Business copy is not baked into the bundle.
 5. Internal nav uses `history.pushState` + prefix-aware `<a href>` (not `next/link`).
-6. Shipped **Design 1 only** (emerald/professional), bound to the CRM `window.SITE` JSON shape. Designs 2–3 and the switcher were showcase-only and duplicated hardcoded ALOE copy.
+6. Three visual designs (emerald / dark / soft) as **skins over the same `config.json`**, with a Design 1/2/3 switcher. About and contact stay as prefix-aware SPA views (`/{placeId}/about/`, `/{placeId}/contact/`) — not App Router pages with `next/link` to `/about` (that would drop `{placeId}` and 404 on hydrate).
 7. Generic export metadata + `noindex` (mockups must not be indexed).
 
 ## Config contract (runtime JSON)

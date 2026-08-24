@@ -1,6 +1,7 @@
 import "@/styles/globals.css"
 import type { AppProps } from "next/app"
 import { Geist, Geist_Mono } from "next/font/google"
+import { DesignProvider } from "@/lib/design"
 import { SiteProvider } from "@/lib/site-context"
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
@@ -10,7 +11,9 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <div className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
       <SiteProvider>
-        <Component {...pageProps} />
+        <DesignProvider>
+          <Component {...pageProps} />
+        </DesignProvider>
       </SiteProvider>
     </div>
   )
