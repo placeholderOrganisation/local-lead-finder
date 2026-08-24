@@ -57,6 +57,7 @@
   .t-WARM{background:color-mix(in srgb,var(--warm) 18%,transparent); color:var(--warm)}
   .t-AUDIT{background:color-mix(in srgb,var(--audit) 18%,transparent); color:var(--audit)}
   .t-SKIP{background:color-mix(in srgb,var(--skip) 18%,transparent); color:var(--skip)}
+  .t-PREVIEW{background:color-mix(in srgb,var(--good) 18%,transparent); color:var(--good)}
   .st{font-size:12px; color:var(--muted)}
   a{color:var(--accent); text-decoration:none}
   a:hover{text-decoration:underline}
@@ -116,6 +117,7 @@
   </select>
   <select id="fCategory"><option value="">All categories</option></select>
   <label><input type="checkbox" id="fIssues"> Has issues</label>
+  <label><input type="checkbox" id="fPreview"> Has preview</label>
   <label><input type="checkbox" id="fDue"> Due</label>
   <span class="count" id="count"></span>
 </section>
@@ -128,6 +130,7 @@
       <th data-k="business">Business</th>
       <th data-k="category">Category</th>
       <th data-k="phone">Phone</th>
+      <th data-k="preview">Preview</th>
       <th data-k="status">Status</th>
       <th data-k="followUpDate">Follow-up</th>
     </tr></thead>
@@ -223,13 +226,14 @@ function buildCategoryOptions(){
 function filtered(){
   const q = $("#q").value.trim().toLowerCase();
   const st = $("#fStatus").value, ti = $("#fTier").value, ca = $("#fCategory").value;
-  const issues = $("#fIssues").checked, due = $("#fDue").checked;
+  const issues = $("#fIssues").checked, preview = $("#fPreview").checked, due = $("#fDue").checked;
   const end = endOfToday();
   return state.leads.filter(l => {
     if (st && l.status !== st) return false;
     if (ti && (l.tier||"") !== ti) return false;
     if (ca && (l.category||"") !== ca) return false;
     if (issues && !(Array.isArray(l.issues) && l.issues.length)) return false;
+    if (preview && !hasPreview(l)) return false;
     if (due){ const d = l.followUpDate ? new Date(l.followUpDate) : null; if (!d || d > end) return false; }
     if (q){
       const hay = [l.business,l.category,l.address].map(x => (x||"").toLowerCase()).join(" ");
@@ -245,6 +249,7 @@ function sortRows(rows){
     let av = a[k], bv = b[k];
     if (k === "followUpDate"){ av = av?new Date(av).getTime():0; bv = bv?new Date(bv).getTime():0; }
     else if (k === "priority"){ av = num(av); bv = num(bv); }
+    else if (k === "preview"){ av = hasPreview(a) ? 1 : 0; bv = hasPreview(b) ? 1 : 0; }
     else { av = (av||"").toString().toLowerCase(); bv = (bv||"").toString().toLowerCase(); }
     if (av < bv) return -1*d; if (av > bv) return 1*d; return (num(b.priority))-(num(a.priority));
   });
@@ -261,6 +266,9 @@ function render(){
     tr.appendChild(td(esc(l.business||"(no name)"), "biz"));
     tr.appendChild(td(esc(l.category||""), "cat"));
     tr.appendChild(td(l.phone ? `<a href="tel:${esc(l.phone)}" onclick="event.stopPropagation()">${esc(l.phone)}</a>` : ""));
+    tr.appendChild(td(hasPreview(l)
+      ? `<a class="badge t-PREVIEW" href="${esc(previewPath(l))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Preview</a>`
+      : `<span class="st">—</span>`));
     tr.appendChild(td(`<span class="st">${esc(l.status||"New")}</span>`));
     tr.appendChild(td(fmtDate(l.followUpDate), "st"));
     tr.addEventListener("click", () => openDrawer(l._id));
@@ -274,15 +282,16 @@ function render(){
 function renderTiles(){
   const L = state.leads, end = endOfToday(), start = startOfToday();
   const byStatus = {}; for (const s of state.stages) byStatus[s] = 0;
-  let due = 0, overdue = 0;
+  let due = 0, overdue = 0, withPreview = 0;
   for (const l of L){
     if (l.status in byStatus) byStatus[l.status]++;
+    if (hasPreview(l)) withPreview++;
     if (l.followUpDate){ const d = new Date(l.followUpDate);
       if (d < start) overdue++; else if (d <= end) due++; }
   }
   const tiles = [["Total", L.length]];
   for (const s of state.stages) tiles.push([s, byStatus[s]]);
-  tiles.push(["Due today", due], ["Overdue", overdue]);
+  tiles.push(["With preview", withPreview], ["Due today", due], ["Overdue", overdue]);
   $("#tiles").innerHTML = tiles.map(([l,n]) =>
     `<div class="tile"><div class="n">${n}</div><div class="l">${esc(l)}</div></div>`).join("");
 }
@@ -392,11 +401,11 @@ function renderOutreach(l){
   const pubBtn = $("#dPublish");
   const copyBtn = $("#dCopyUrl");
   const urlEl = $("#dPublicUrl");
-  const hasConfig = Boolean(l?.mockup?.config);
+  const ready = hasPreview(l);
   const publicUrl = l?.mockup?.publicUrl || "";
-  if (hasConfig) {
+  if (ready) {
     preview.classList.remove("hidden");
-    preview.href = "/preview/" + encodeURIComponent(l._id) + "/";
+    preview.href = previewPath(l);
     pubBtn.classList.remove("hidden");
   } else {
     preview.classList.add("hidden");
@@ -404,7 +413,7 @@ function renderOutreach(l){
     pubBtn.classList.add("hidden");
   }
   copyBtn.classList.toggle("hidden", !publicUrl);
-  urlEl.textContent = publicUrl || (hasConfig ? "Local preview only — publish to get a shareable link." : "No mockup yet.");
+  urlEl.textContent = publicUrl || (ready ? "Local preview only — publish to get a shareable link." : "No mockup yet.");
 }
 
 async function postJson(path, body){
@@ -429,6 +438,7 @@ async function runPrepare(){
     mergeLead(l._id, data.lead);
     if (data.assets && state.current) state.current.assets = data.assets;
     renderOutreach(state.current);
+    render();
     toast("Outreach prepared");
   } catch (e) {
     $("#dMoney").textContent = "Failed: " + e.message;
@@ -443,6 +453,7 @@ async function runMockup(){
     const data = await postJson("/api/mockup", { placeId: l._id });
     mergeLead(l._id, data.lead);
     renderOutreach(state.current);
+    render();
     toast(data.publicUrl ? "Mockup generated and published" : "Mockup generated — preview ready");
   } catch (e) {
     toast("Mockup failed", true);
@@ -487,6 +498,8 @@ function toast(msg, bad){
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────
+function hasPreview(l){ return Boolean(l?.mockup?.config); }
+function previewPath(l){ return "/preview/" + encodeURIComponent(l._id) + "/"; }
 function td(html, cls){ const c = document.createElement("td"); if (cls) c.className = cls; c.innerHTML = html; return c; }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
 function num(v){ const n = Number(v); return Number.isFinite(n) ? n : -Infinity; }
@@ -496,12 +509,12 @@ function fmtDate(v){ if (!v) return ""; const d = new Date(v); return isNaN(d) ?
 function dateInput(v){ return fmtDate(v); }
 
 // ── wiring ──────────────────────────────────────────────────────────────
-for (const id of ["q","fStatus","fTier","fCategory","fIssues","fDue"])
+for (const id of ["q","fStatus","fTier","fCategory","fIssues","fPreview","fDue"])
   $("#"+id).addEventListener("input", render);
 document.querySelectorAll("th").forEach(th => th.addEventListener("click", () => {
   const k = th.dataset.k;
   if (state.sortKey === k) state.sortDir *= -1;
-  else { state.sortKey = k; state.sortDir = (k === "priority" || k === "followUpDate") ? -1 : 1; }
+  else { state.sortKey = k; state.sortDir = (k === "priority" || k === "followUpDate" || k === "preview") ? -1 : 1; }
   render();
 }));
 $("#dClose").addEventListener("click", closeDrawer);
@@ -527,6 +540,7 @@ async function runPublish(){
     mergeLead(l._id, data.lead);
     if (data.assets && state.current) state.current.assets = data.assets;
     renderOutreach(state.current);
+    render();
     toast("Published");
   } catch (e) {
     toast("Publish failed: " + e.message, true);
