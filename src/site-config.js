@@ -20,6 +20,10 @@ export const PREVIEW_MIME = {
   ".ico": "image/x-icon",
   ".woff2": "font/woff2",
   ".woff": "font/woff",
+  ".txt": "text/plain; charset=utf-8",
+  ".map": "application/json",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
 };
 
 const TYPE_ALIASES = {

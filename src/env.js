@@ -147,3 +147,37 @@ function r2Val(v) {
   if (!s || /^your-|^<.*>$/i.test(s)) return "";
   return s;
 }
+
+function firstEnv(...keys) {
+  loadEnv();
+  for (const k of keys) {
+    const v = r2Val(process.env[k]);
+    if (v) return v;
+  }
+  return "";
+}
+
+/** Wrangler / Workers API token (`CLOUDFLARE_API_TOKEN` or `CLOUDFLARE_API_TOKEN`). */
+export function getCloudflareToken() {
+  return firstEnv("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_API_TOKEN");
+}
+
+/**
+ * Account workers.dev host, e.g. `minteksoftware.workers.dev`.
+ * Accepts `WORKERS_SUBDOMAIN` or `WORKERS_SUBDOMAIN`.
+ */
+export function getWorkersSubdomain() {
+  let s = firstEnv("WORKERS_SUBDOMAIN", "WORKERS_SUBDOMAIN");
+  s = s.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  if (s && !s.includes(".")) s += ".workers.dev";
+  return s;
+}
+
+/**
+ * `worker` (default) | `bucket` rollback. `HOSTING_MODE` or `HOSTING_MODE`.
+ * @returns {"worker"|"bucket"}
+ */
+export function getHostingMode() {
+  const v = firstEnv("HOSTING_MODE", "HOSTING_MODE").toLowerCase();
+  return v === "bucket" ? "bucket" : "worker";
+}
