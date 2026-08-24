@@ -5,10 +5,11 @@
 import OpenAI from "openai";
 import { getOpenAIKey, getOpenAIModel, getOpenAIBaseURL, getOutreachProfile } from "./env.js";
 import { saveMockup } from "./store.js";
+import { fetchReviews } from "./placedetails.js";
 
 /**
  * @param {object} lead
- * @returns {Promise<object>} window.SITE per the #40 contract (reviews: [] until #42)
+ * @returns {Promise<object>} window.SITE per the #40 contract
  */
 export async function buildSiteConfig(lead) {
   const profile = getOutreachProfile();
@@ -32,10 +33,14 @@ export async function buildSiteConfig(lead) {
     copy = fallbackCopy(facts, lead, profile);
   }
 
+  const pulled = await fetchReviews(placeId);
+  if (pulled.rating != null) facts.rating = pulled.rating;
+  if (pulled.reviewCount != null) facts.reviewCount = pulled.reviewCount;
+
   const site = {
     business: facts,
     copy,
-    reviews: [],
+    reviews: pulled.reviews,
     meta: { preview: true, generatedAt, placeId, model },
   };
 

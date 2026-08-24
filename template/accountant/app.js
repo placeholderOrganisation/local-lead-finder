@@ -577,7 +577,7 @@
       var count = el("span", "reviews__count"); txt(count, "(" + r.count + " Google reviews)");
       agg.appendChild(count);
     }
-    txt($("reviews-source"), r.sourceLabel || "Reviews from Google");
+    txt($("reviews-source"), r.sourceLabel || "Reviews via Google");
     // grid
     var grid = $("reviews-grid");
     clear(grid);

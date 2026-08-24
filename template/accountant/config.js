@@ -156,7 +156,7 @@ window.SITE = {
   /* ---------- Reviews (BAKED by the CRM from placeId — the page never calls Google) ---------- */
   reviews: {
     heading: "What clients say",
-    sourceLabel: "Reviews from Google",
+    sourceLabel: "Reviews via Google",
     rating: 4.9,                          // from Place Details
     count: 87,
     mapsUrl: "https://maps.google.com/?cid=EXAMPLE",  // Place Details googleMapsUri
