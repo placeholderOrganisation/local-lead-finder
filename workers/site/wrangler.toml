@@ -1,0 +1,10 @@
+name = "mockup"
+main = "src/worker.js"
+compatibility_date = "2024-11-01"
+
+[env.accountant]
+name = "mockup-accountant"
+
+[[env.accountant.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "mockup-accountant"

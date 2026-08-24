@@ -6,3 +6,4 @@ node_modules/
 worker.log
 template/**/.next/
 template/**/out/
+.wrangler/

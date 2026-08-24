@@ -25,5 +25,8 @@
     "mongodb": "^7.5.0",
     "openai": "^5.23.2",
     "unlighthouse": "^0.18.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.125.0"
   }
 }
