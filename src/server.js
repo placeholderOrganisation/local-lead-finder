@@ -13,6 +13,13 @@ import { ensureIndexes, close } from "./db.js";
 import { deepAudit } from "./deepaudit.js";
 import { prepareOutreach } from "./compose.js";
 import { generateMockup } from "./mockup.js";
+import {
+  emptySiteConfig,
+  mimeFor,
+  resolvePreviewFile,
+  resolveTemplateDir,
+  serializeConfigJs,
+} from "./site-config.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(HERE, "public");
@@ -44,6 +51,12 @@ async function handle(req, res) {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(html);
       return;
+    }
+
+    const previewMatch = url.pathname.match(/^\/preview\/([^/]+)(\/.*)?$/);
+    if (req.method === "GET" && previewMatch) {
+      const placeId = decodeURIComponent(previewMatch[1]);
+      return servePreview(res, placeId, previewMatch[2]);
     }
 
     // ── mutating routes (CSRF/DNS-rebinding guarded) ──────────────────────────
@@ -97,6 +110,50 @@ async function handle(req, res) {
   } catch (e) {
     return sendJson(res, 500, { error: e.message });
   }
+}
+
+/**
+ * GET /preview/:placeId/* — serve the checked-in template with per-lead config.js.
+ * Template files are never rewritten; only config.js is generated from mockup.config.
+ * Relative links (about.html, styles.css, app.js) resolve the same as file://.
+ */
+async function servePreview(res, placeId, rest) {
+  if (rest == null) {
+    res.writeHead(302, { Location: `/preview/${encodeURIComponent(placeId)}/` });
+    res.end();
+    return;
+  }
+
+  const lead = await getLead(placeId);
+  if (!lead) return sendJson(res, 404, { error: "lead not found" });
+
+  const rel = rest === "/" ? "/index.html" : rest;
+  const base = rel.split("/").filter(Boolean).pop() || "";
+
+  if (base === "config.js") {
+    const stored = lead.mockup?.config;
+    const config = stored && typeof stored === "object" ? { ...stored } : emptySiteConfig(placeId);
+    config.meta = { ...(config.meta || {}), preview: true, placeId };
+    const body = serializeConfigJs(config);
+    res.writeHead(200, {
+      "Content-Type": "text/javascript; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "X-Robots-Tag": "noindex, nofollow",
+    });
+    res.end(body);
+    return;
+  }
+
+  const file = resolvePreviewFile(resolveTemplateDir(lead), rel);
+  if (!file) return sendJson(res, 404, { error: "not found" });
+  const buf = await readFile(file);
+  res.writeHead(200, {
+    "Content-Type": mimeFor(file),
+    "Cache-Control": "no-store",
+    "X-Robots-Tag": "noindex, nofollow",
+  });
+  res.end(buf);
 }
 
 async function serveSpa(res) {

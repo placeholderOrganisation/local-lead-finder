@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en" data-design="1" data-page="home">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Site preview</title>
+  <meta name="description" content="Site preview" />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <div class="preview-banner" id="preview-banner" role="status">Preview / mockup — not the live website</div>
+
+  <!-- PREVIEW CHROME (not client branding) -->
+  <div class="switcher" id="design-switcher" hidden>
+    <div class="switcher__inner">
+      <span class="switcher__label" id="switcher-label">Site preview</span>
+      <div class="switcher__buttons" role="group" aria-label="Choose a design">
+        <span class="switcher__hint">Design</span>
+        <button type="button" class="switcher__btn" data-design-btn="1" aria-pressed="false">1</button>
+        <button type="button" class="switcher__btn" data-design-btn="2" aria-pressed="false">2</button>
+        <button type="button" class="switcher__btn" data-design-btn="3" aria-pressed="false">3</button>
+      </div>
+    </div>
+  </div>
+
+  <header class="site-header" id="site-header">
+    <div class="site-header__inner container">
+      <a class="brand" id="logo" href="index.html" aria-label="Home"></a>
+      <button class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Open menu">
+        <span class="nav-toggle__bar"></span>
+        <span class="nav-toggle__bar"></span>
+        <span class="nav-toggle__bar"></span>
+      </button>
+      <nav class="primary-nav" id="primary-nav" aria-label="Primary">
+        <ul class="primary-nav__list" id="nav-list"></ul>
+        <a class="btn btn--primary primary-nav__cta" id="header-cta" href="#contact"></a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- 4. HERO -->
+    <section class="hero" id="hero" aria-labelledby="hero-headline">
+      <div class="container hero__grid">
+        <div class="hero__copy">
+          <p class="kicker" id="hero-kicker" hidden></p>
+          <h1 class="hero__headline" id="hero-headline"></h1>
+          <p class="hero__subhead" id="hero-subhead"></p>
+          <div class="hero__actions">
+            <a class="btn btn--primary" id="hero-cta-primary" href="#contact"></a>
+            <a class="btn btn--ghost" id="hero-cta-secondary" href="#contact"></a>
+          </div>
+        </div>
+        <aside class="hero__panel" id="hero-panel" aria-label="At a glance">
+          <div class="hero__visual" aria-hidden="true">
+            <span class="hero__mark" id="hero-mark"></span>
+          </div>
+          <dl class="trust-panel" id="hero-trust"></dl>
+          <p class="hero__caption" id="hero-caption" hidden></p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 5. NOTICE -->
+    <section class="notice" id="notice" hidden aria-label="Notice">
+      <div class="container notice__inner">
+        <span class="notice__icon" aria-hidden="true"></span>
+        <div>
+          <p class="notice__heading" id="notice-heading"></p>
+          <p class="notice__body" id="notice-body"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. TRUST BAR -->
+    <section class="trustbar" id="trustbar" hidden aria-label="Highlights">
+      <div class="container trustbar__inner" id="trustbar-inner"></div>
+    </section>
+
+    <!-- 7. ABOUT TEASER -->
+    <section class="about-teaser" id="about-teaser" aria-labelledby="about-teaser-heading">
+      <div class="container about-teaser__grid">
+        <div class="about-teaser__body">
+          <p class="kicker" id="about-teaser-kicker" hidden></p>
+          <h2 class="section__title" id="about-teaser-heading"></h2>
+          <p class="about-teaser__lead" id="about-teaser-text"></p>
+          <ul class="ticklist" id="about-teaser-bullets" hidden></ul>
+          <a class="btn btn--secondary" id="about-teaser-link" href="about.html">Read our story</a>
+        </div>
+        <aside class="owner-card" id="about-owner" hidden>
+          <span class="avatar" id="owner-initials" aria-hidden="true"></span>
+          <p class="owner-card__name" id="owner-name"></p>
+          <p class="owner-card__title" id="owner-title"></p>
+          <p class="owner-card__cred" id="owner-cred"></p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 8. SERVICES -->
+    <section class="section services" id="services" aria-labelledby="services-heading">
+      <div class="container">
+        <div class="section__head">
+          <p class="kicker" id="services-kicker" hidden></p>
+          <h2 class="section__title" id="services-heading"></h2>
+          <p class="section__intro" id="services-intro" hidden></p>
+        </div>
+        <div class="card-grid" id="services-grid"></div>
+      </div>
+    </section>
+
+    <!-- 9. WHO WE HELP -->
+    <section class="section audiences" id="audiences" hidden aria-labelledby="audiences-heading">
+      <div class="container">
+        <div class="section__head">
+          <h2 class="section__title" id="audiences-heading"></h2>
+          <p class="section__intro" id="audiences-intro" hidden></p>
+        </div>
+        <div class="audience-grid" id="audiences-grid"></div>
+      </div>
+    </section>
+
+    <!-- 10. PROCESS -->
+    <section class="section process" id="process" hidden aria-labelledby="process-heading">
+      <div class="container">
+        <div class="section__head">
+          <h2 class="section__title" id="process-heading"></h2>
+          <p class="section__intro" id="process-intro" hidden></p>
+        </div>
+        <ol class="steps" id="process-steps"></ol>
+      </div>
+    </section>
+
+    <!-- 11. PRICING -->
+    <section class="section pricing" id="pricing" hidden aria-labelledby="pricing-heading">
+      <div class="container">
+        <div class="section__head">
+          <h2 class="section__title" id="pricing-heading"></h2>
+          <p class="section__intro" id="pricing-intro" hidden></p>
+        </div>
+        <div class="price-grid" id="pricing-grid"></div>
+      </div>
+    </section>
+
+    <!-- 12. REVIEWS -->
+    <section class="section reviews" id="reviews" hidden aria-labelledby="reviews-heading">
+      <div class="container">
+        <div class="section__head">
+          <h2 class="section__title" id="reviews-heading"></h2>
+          <div class="reviews__aggregate" id="reviews-aggregate"></div>
+          <p class="reviews__source" id="reviews-source"></p>
+        </div>
+        <div class="review-grid" id="reviews-grid"></div>
+        <a class="btn btn--ghost reviews__all" id="reviews-all" href="#" target="_blank" rel="noopener" hidden>See all on Google</a>
+      </div>
+    </section>
+
+    <!-- 13. FAQ -->
+    <section class="section faq" id="faq" hidden aria-labelledby="faq-heading">
+      <div class="container faq__inner">
+        <h2 class="section__title" id="faq-heading"></h2>
+        <div class="faq__list" id="faq-list"></div>
+      </div>
+    </section>
+
+    <!-- 14. CONTACT -->
+    <section class="section contact" id="contact" aria-labelledby="contact-heading">
+      <div class="container contact__grid">
+        <div class="contact__copy">
+          <h2 class="section__title" id="contact-heading"></h2>
+          <p class="section__intro" id="contact-body" hidden></p>
+          <form class="contact-form" id="contact-form" hidden>
+            <div class="field">
+              <label for="cf-name">Name <span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="cf-name" name="name" required autocomplete="name" />
+            </div>
+            <div class="field">
+              <label for="cf-email">Email <span class="req" aria-hidden="true">*</span></label>
+              <input type="email" id="cf-email" name="email" required autocomplete="email" />
+            </div>
+            <div class="field">
+              <label for="cf-phone">Phone</label>
+              <input type="tel" id="cf-phone" name="phone" autocomplete="tel" />
+            </div>
+            <div class="field">
+              <label for="cf-service">What do you need?</label>
+              <select id="cf-service" name="service"></select>
+            </div>
+            <div class="field field--full">
+              <label for="cf-message">Message <span class="req" aria-hidden="true">*</span></label>
+              <textarea id="cf-message" name="message" rows="4" required></textarea>
+            </div>
+            <div class="field field--full">
+              <button type="submit" class="btn btn--primary btn--block">Send message</button>
+            </div>
+          </form>
+        </div>
+        <aside class="contact__aside" id="contact-aside"></aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer" id="site-footer">
+    <div class="container site-footer__grid">
+      <div class="site-footer__col">
+        <span class="brand brand--footer" id="footer-logo"></span>
+        <p class="site-footer__blurb" id="footer-blurb"></p>
+        <ul class="credrow" id="footer-creds" hidden></ul>
+      </div>
+      <div class="site-footer__col">
+        <h3 class="site-footer__title">Services</h3>
+        <ul class="site-footer__list" id="footer-services"></ul>
+      </div>
+      <div class="site-footer__col">
+        <h3 class="site-footer__title">Contact</h3>
+        <ul class="site-footer__list" id="footer-contact"></ul>
+      </div>
+    </div>
+    <div class="site-footer__base">
+      <div class="container site-footer__base-inner">
+        <p id="footer-copy"></p>
+        <p class="site-footer__legal" id="footer-legal"></p>
+      </div>
+    </div>
+  </footer>
+
+  <a class="callbar" id="callbar" href="tel:" hidden>
+    <span class="callbar__icon" aria-hidden="true"></span>
+    <span id="callbar-label">Call now</span>
+  </a>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
