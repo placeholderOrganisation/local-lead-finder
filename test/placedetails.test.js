@@ -62,8 +62,6 @@ test("worker.js and places.js never call Place Details / reviews", () => {
 });
 
 test("template shows Reviews via Google attribution", () => {
-  const html = readFileSync(join(ROOT, "template/accountant/index.html"), "utf8");
-  const app = readFileSync(join(ROOT, "template/accountant/app.js"), "utf8");
-  assert.match(html, /Reviews via Google/);
+  const app = readFileSync(join(ROOT, "template/accountant/components/site-app.tsx"), "utf8");
   assert.match(app, /Reviews via Google/);
 });

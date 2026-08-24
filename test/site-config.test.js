@@ -40,37 +40,23 @@ test("emptySiteConfig matches the #40 contract and is clearly labeled", () => {
   assert.match(cfg.copy.heroHeadline, /preview|mockup/i);
 });
 
-test("resolvePreviewFile serves template assets and rejects traversal", () => {
+test("resolvePreviewFile rejects traversal (HTML preview is #48; source is Next now)", () => {
   const dir = resolveTemplateDir({ category: "Accountant" });
   assert.equal(dir, join(TEMPLATE_ROOT, "accountant"));
-  assert.ok(resolvePreviewFile(dir, "/").endsWith("index.html"));
-  assert.ok(resolvePreviewFile(dir, "/index.html").endsWith("index.html"));
-  assert.ok(resolvePreviewFile(dir, "/about.html").endsWith("about.html"));
-  assert.ok(resolvePreviewFile(dir, "/styles.css").endsWith("styles.css"));
-  assert.ok(resolvePreviewFile(dir, "/app.js").endsWith("app.js"));
-  assert.equal(resolvePreviewFile(dir, "/config.js") !== null, true);
   assert.equal(resolvePreviewFile(dir, "/../src/env.js"), null);
   assert.equal(resolvePreviewFile(dir, "/../../package.json"), null);
   assert.equal(resolvePreviewFile(dir, "/%2e%2e/src/env.js"), null);
 });
 
-test("template HTML has noindex + preview banner; app.js binds via textContent", () => {
-  const index = readFileSync(join(ROOT, "template/accountant/index.html"), "utf8");
-  const about = readFileSync(join(ROOT, "template/accountant/about.html"), "utf8");
-  const app = readFileSync(join(ROOT, "template/accountant/app.js"), "utf8");
-  for (const html of [index, about]) {
-    assert.match(html, /<meta name="robots" content="noindex/);
-    assert.match(html, /preview-banner/);
-    assert.match(html, /Preview \/ mockup/i);
-    assert.match(html, /href="styles.css"/);
-    assert.match(html, /src="app.js"/);
-    assert.match(html, /src="config.js"/);
-    assert.doesNotMatch(html, /<(?:script|link|img|iframe)\b[^>]*(?:src|href)\s*=\s*["']https?:/i);
-  }
-  assert.match(index, /href="about.html"/);
-  assert.match(app, /textContent/);
-  assert.match(app, /function normalizeSite/);
-  const assigns = [...app.matchAll(/\.innerHTML\s*=/g)];
-  assert.equal(assigns.length, 1);
-  assert.match(app, /sanitizeSvg[\s\S]{0,400}innerHTML/);
+test("accountant template is a Next static-export SPA (#50)", () => {
+  const cfg = readFileSync(join(ROOT, "template/accountant/next.config.mjs"), "utf8");
+  assert.match(cfg, /output:\s*["']export["']/);
+  const ctx = readFileSync(join(ROOT, "template/accountant/lib/site-context.tsx"), "utf8");
+  assert.match(ctx, /config\.json/);
+  assert.match(ctx, /placeId/);
+  const doc = readFileSync(join(ROOT, "template/accountant/pages/_document.tsx"), "utf8");
+  assert.match(doc, /noindex/);
+  const app = readFileSync(join(ROOT, "template/accountant/components/site-app.tsx"), "utf8");
+  assert.match(app, /Reviews via Google/);
+  assert.doesNotMatch(app, /next\/link/);
 });

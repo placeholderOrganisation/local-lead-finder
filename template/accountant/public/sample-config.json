@@ -1,0 +1,36 @@
+{
+  "business": {
+    "name": "Ash Tax",
+    "category": "Accountant",
+    "phone": "(905) 555-0100",
+    "tel": "tel:9055550100",
+    "address": "Brampton, ON",
+    "mapsUrl": "",
+    "area": "Brampton",
+    "rating": 4.8,
+    "reviewCount": 24
+  },
+  "copy": {
+    "heroHeadline": "Ash Tax — the first impression that actually gets the call",
+    "heroSub": "Accountant in Brampton. Tap to call (905) 555-0100 — we'll take it from there.",
+    "about": "Ash Tax already has customers — the leak is the people who find you on a phone and bounce before they tap Call. A clearer homepage in Brampton turns those lookers into booked jobs.",
+    "services": [
+      { "title": "Bookkeeping", "desc": "Full-cycle books, monthly statements, and reconciliations." },
+      { "title": "Corporate tax", "desc": "T2 returns, HST, and planning before year-end." },
+      { "title": "Payroll", "desc": "Pay runs, T4s, and CRA remittances on time." }
+    ],
+    "faq": [
+      { "q": "Is this the live website?", "a": "No — this is a preview / mockup so you can see the direction before anything goes live." },
+      { "q": "How do people reach us?", "a": "Call (905) 555-0100. The button on this page dials the office." }
+    ]
+  },
+  "reviews": [
+    {
+      "author": "Sam R.",
+      "rating": 5,
+      "text": "Clear, on time, and they actually explain the numbers.",
+      "relativeTime": "2 months ago"
+    }
+  ],
+  "meta": { "preview": true, "generatedAt": null, "placeId": "ChIJ_test" }
+}

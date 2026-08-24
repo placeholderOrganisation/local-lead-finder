@@ -4,3 +4,5 @@ node_modules/
 !sample.csv
 .DS_Store
 worker.log
+template/**/.next/
+template/**/out/
