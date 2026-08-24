@@ -309,11 +309,11 @@ npm run dashboard        # http://127.0.0.1:4000
    pitch; has-site leads get a lost-customers pitch. A 403/500/unreachable site
    is flagged `needsVerification`: the drawer shows a **verify first** banner
    and the copy **must not** claim the site is down.
-3. **Generate mockup** — builds a `window.SITE` config (facts + copy + up to
+3. **Generate mockup** — builds a site config (facts + copy + up to
    5 Google reviews) and stores it on the lead as `mockup.config`. Preview
-   the checked-in template at `/preview/:placeId/`. With R2 configured,
-   **Publish** uploads the template plus `config.js` and **Copy public URL**
-   copies the live link (also injected into the outreach email CTA).
+   the Next export at `/preview/:placeId/`. With hosting configured,
+   **Publish** writes `{placeId}/config.json` and **Copy public URL**
+   copies the live Worker link (also injected into the outreach email CTA).
 4. Pick a **contact channel** (phone / email / DM / in person) and mark
    **Contacted**. Nothing is sent for you.
 
@@ -323,20 +323,20 @@ import — those stay on the fast DIY fetch audit.
 
 ### Mockups (M4)
 
-One mechanism: a checked-in template personalized by `window.SITE`. The app
-does **not** generate HTML per lead. Template files on disk, in `/preview/`,
-and on R2 are byte-identical; only `config.js` changes.
+One mechanism: a checked-in Next.js static export personalized by
+`/{placeId}/config.json` (same object the CRM stores as `mockup.config`).
+The app does **not** generate HTML per lead. The shared `out/` bundle is
+uploaded once per template type; only `config.json` changes per lead.
 
 **Template + contract**
 
-- Files live in `template/accountant/` (`index.html`, `about.html`, `styles.css`,
-  `app.js`, plus an example `config.js`).
-- `app.js` reads `window.SITE` and binds with `textContent` (no `innerHTML` of
-  lead copy).
+- App lives in `template/accountant/` (Pages Router SPA, `output: 'export'`).
+- Runtime: first path segment is `placeId` (skips a leading `preview`); fetch
+  `/{placeId}/config.json`. Assets are root-absolute `/_next/…`.
 - Shape:
 
 ```js
-window.SITE = {
+{
   business: { name, category, phone, tel, address, mapsUrl, area, rating, reviewCount },
   copy: { heroHeadline, heroSub, about, services: [{ title, desc }], faq: [{ q, a }] },
   reviews: [{ author, rating, text, relativeTime }],
@@ -348,37 +348,59 @@ window.SITE = {
 
 1. Dashboard **Generate mockup** → `POST /api/mockup` → `buildSiteConfig` →
    `lead.mockup.config` (never `lead.mockup.html`).
-2. **Preview** → `GET /preview/:placeId/` (and `/about.html`, `/styles.css`,
-   `/app.js`, `/config.js`). Local-only, `noindex`.
-3. **Publish** → `POST /api/publish` uploads template files + generated
-   `config.js` to `{placeId}/` in R2. Public URL is
-   `${MOCKUP_PUBLIC_BASE}/{placeId}/index.html` (R2 has no directory index).
+2. **Preview** → `GET /preview/:placeId/` (Next `out/` + SPA). Local-only,
+   `noindex`. Config is `/{placeId}/config.json`.
+3. **Publish** → `POST /api/publish` writes `{placeId}/config.json` to the
+   per-type bucket. Public URL is the Worker
+   `https://mockup-<type>.<WORKERS_SUBDOMAIN>/{placeId}/`.
 4. **Copy public URL** / Prepare outreach — email CTA uses that `publicUrl`.
 
-**R2 setup** (needed to publish; preview works without it)
+See **Hosting (M5)** below for deploy, limits, and rollback.
+`GET /mockup/:placeId` redirects to `/preview/:placeId/`.
+
+### Hosting (M5)
+
+One R2 bucket + one Worker **per template type**, not per lead. Bucket
+`mockup-accountant` is served at `https://mockup-accountant.<WORKERS_SUBDOMAIN>/{placeId}/`.
+The shared Next `out/` tree is uploaded once to the bucket **root**; per-lead
+data is only `{placeId}/config.json`.
+
+**One-time Cloudflare setup**
+
+1. Create an API token with Workers Scripts Edit + Workers R2 Storage Edit.
+   Put it in `.env` as `CLOUDFLARE_API_TOKEN` (Wrangler also reads this).
+2. Note your `*.workers.dev` subdomain from `npx wrangler deploy` (example:
+   `mintek.workers.dev`) and set `WORKERS_SUBDOMAIN`.
+
+**Deploy a type**
 
 ```bash
-R2_ACCOUNT_ID=
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_BUCKET=
-MOCKUP_PUBLIC_BASE=https://<public-bucket-host>   # no trailing slash
+npm run deploy:site -- accountant
+# builds template/accountant (next build → out/), uploads out/ to r2://mockup-accountant/,
+# deploys workers/site -e accountant, prints the live Worker URL
 ```
 
-Optional custom domain: point it at the bucket and put that origin in
-`MOCKUP_PUBLIC_BASE`. Re-publish overwrites the same keys. If any R2 var is
-missing, `r2Enabled()` is false and publish is skipped (no error).
+Hashed `/_next/static/*` get immutable cache headers; `index.html` is short-cached.
 
-**Preview-only policy**
+**Publish a lead** — `HOSTING_MODE=worker` (default) writes one object and
+returns the Worker URL. `HOSTING_MODE=bucket` is rollback: publish keeps the
+old public-bucket `{placeId}/index.html` path (`MOCKUP_PUBLIC_BASE`).
 
-These pages are sales demos, not live client sites:
+**Free-tier sketch** — ~100 Workers (so ~100 template types); lead sites are
+unlimited objects in those buckets; ~100k Worker requests/day.
 
-- `noindex, nofollow` on preview and a visible **Preview / mockup** banner.
-- Review quotes are attributed **Reviews via Google**.
-- Wind the published objects down after the demo (delete the `{placeId}/`
-  prefix in R2). Do not leave mockups indexed or implied as production sites.
+**Rollback** (do not delete the old bucket/path)
 
-`GET /mockup/:placeId` redirects to `/preview/:placeId/`.
+- Instant serving rollback: `HOSTING_MODE=bucket` (new `publicUrl`s go back to
+  `${MOCKUP_PUBLIC_BASE}/{placeId}/index.html`). Existing Worker URLs keep
+  working until you `wrangler rollback -e accountant`.
+- Worker rollback: `cd workers/site && npx wrangler rollback -e accountant`.
+
+**Verify**
+
+```bash
+npm run verify:hosting   # live Worker 200 + config.json + SPA + 404; compose CTA; mode flip
+```
 
 ### Verify
 
@@ -386,6 +408,7 @@ These pages are sales demos, not live client sites:
 npm test                      # unit tests (scoring, compose mock, mockup isolation)
 npm run verify:outreach       # live OpenAI + Mongo: no-website / has-site / 403
 npm run verify:mockup         # config + preview (escaped, no external requests); R2 200 if env set
+npm run verify:hosting        # live Worker 200 + config.json + SPA + 404; compose CTA; mode flip
 ```
 
 `verify:outreach` refuses to pass without `OPENAI_API_KEY` and a populated

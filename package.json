@@ -15,6 +15,7 @@
     "verify:crm": "node scripts/verify-crm.mjs",
     "verify:outreach": "node scripts/verify-outreach.mjs",
     "verify:mockup": "node scripts/verify-mockup.mjs",
+    "verify:hosting": "node scripts/verify-hosting.mjs",
     "deploy:site": "node scripts/deploy-site.mjs"
   },
   "engines": {
