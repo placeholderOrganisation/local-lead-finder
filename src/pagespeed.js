@@ -49,16 +49,51 @@ function parse(data, strategy) {
   const lh = data.lighthouseResult ?? {};
   const cats = lh.categories ?? {};
   const audits = lh.audits ?? {};
+  const requests = audits["network-requests"]?.details?.items;
+  const a11yItems = failedAuditTitles(lh, "accessibility");
   return {
     ok: true,
     strategy,
+    fetchTime: lh.fetchTime ?? data.analysisUTCTimestamp ?? null,
+    lighthouseVersion: lh.lighthouseVersion ?? null,
     performance: pct(cats.performance),
     seo: pct(cats.seo),
     accessibility: pct(cats.accessibility),
     bestPractices: pct(cats["best-practices"]),
     lcpSec: numericSec(audits["largest-contentful-paint"]),
-    tbtMs: audits["total-blocking-time"]?.numericValue ?? null,
+    fcpSec: numericSec(audits["first-contentful-paint"]),
+    tbtMs: numOrNull(audits["total-blocking-time"]?.numericValue),
+    cls: numOrNull(audits["cumulative-layout-shift"]?.numericValue),
+    pageBytes: numOrNull(audits["total-byte-weight"]?.numericValue),
+    requestCount: Array.isArray(requests) ? requests.length : null,
+    robotsTxtOk: auditPass(audits["robots-txt"]),
+    isCrawlable: auditPass(audits["is-crawlable"]),
+    hasViewportAudit: auditPass(audits.viewport),
+    httpsAudit: auditPass(audits["is-on-https"]),
+    accessibilityFailedAudits: a11yItems,
   };
+}
+
+function auditPass(audit) {
+  if (!audit || typeof audit.score !== "number") return null;
+  return audit.score === 1;
+}
+
+function failedAuditTitles(lh, categoryId) {
+  const refs = lh.categories?.[categoryId]?.auditRefs ?? [];
+  const audits = lh.audits ?? {};
+  const titles = [];
+  for (const ref of refs) {
+    if (ref.group === "hidden" || ref.weight === 0) continue;
+    const a = audits[ref.id];
+    if (!a || a.score == null || a.score === 1) continue;
+    if (typeof a.score === "number" && a.score < 1 && a.title) titles.push(a.title);
+  }
+  return titles;
+}
+
+function numOrNull(v) {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
 function pct(cat) {

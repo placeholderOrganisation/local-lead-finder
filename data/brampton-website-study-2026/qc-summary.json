@@ -1,0 +1,1098 @@
+{
+  "stats": {
+    "raw_n": 102,
+    "dropped": [
+      {
+        "name": "Heal360 Physio and Rehab | Massage | Physiotherapy | Motor Vehicle Accident Rehab | Workplace Injury Rehab",
+        "reason": "domain-not-found",
+        "industry": "Dental/medical"
+      },
+      {
+        "name": "Speedy Auto Service Brampton North",
+        "reason": "national-chain-or-municipal",
+        "industry": "Automotive"
+      },
+      {
+        "name": "Cassie Campbell Community Centre",
+        "reason": "national-chain-or-municipal",
+        "industry": "Fitness"
+      },
+      {
+        "name": "Planet Fitness",
+        "reason": "national-chain-or-municipal",
+        "industry": "Fitness"
+      },
+      {
+        "name": "Fit4Less",
+        "reason": "national-chain-or-municipal",
+        "industry": "Fitness"
+      },
+      {
+        "name": "Brampton YMCA",
+        "reason": "national-chain-or-municipal",
+        "industry": "Fitness"
+      },
+      {
+        "name": "Indigo - Brampton",
+        "reason": "national-chain-or-municipal",
+        "industry": "Retail"
+      }
+    ],
+    "keep_n": 95,
+    "lighthouse_n": 77,
+    "html_ok_n": 89,
+    "date_tested": "2026-09-11",
+    "perf": {
+      "n": 77,
+      "median": 56,
+      "mean": 58,
+      "below50": {
+        "n": 26,
+        "d": 77,
+        "pct": 33.8
+      },
+      "above90": {
+        "n": 8,
+        "d": 77,
+        "pct": 10.4
+      },
+      "p25": 42,
+      "p75": 72
+    },
+    "a11y": {
+      "n": 77,
+      "median": 88,
+      "mean": 86.2
+    },
+    "seo": {
+      "n": 77,
+      "median": 92
+    },
+    "bp": {
+      "n": 77,
+      "median": 96
+    },
+    "lcp": {
+      "n": 77,
+      "median": 8.4,
+      "over2_5": {
+        "n": 74,
+        "d": 77,
+        "pct": 96.1
+      }
+    },
+    "cls": {
+      "n": 77,
+      "median": 0.009,
+      "over0_1": {
+        "n": 16,
+        "d": 77,
+        "pct": 20.8
+      }
+    },
+    "tbt": {
+      "n": 77,
+      "median": 196
+    },
+    "fcp": {
+      "n": 77,
+      "median": 3.4
+    },
+    "page_size": {
+      "n": 77,
+      "median": 3343492,
+      "median_mb": 3.34
+    },
+    "requests": {
+      "n": 77,
+      "median": 87
+    },
+    "https": {
+      "n": 87,
+      "d": 89,
+      "pct": 97.8
+    },
+    "wordpress": {
+      "n": 44,
+      "d": 89,
+      "pct": 49.4
+    },
+    "shopify": {
+      "n": 6,
+      "d": 89,
+      "pct": 6.7
+    },
+    "wix": {
+      "n": 3,
+      "d": 89,
+      "pct": 3.4
+    },
+    "squarespace": {
+      "n": 2,
+      "d": 89,
+      "pct": 2.2
+    },
+    "webflow": {
+      "n": 1,
+      "d": 89,
+      "pct": 1.1
+    },
+    "schema": {
+      "n": 55,
+      "d": 89,
+      "pct": 61.8
+    },
+    "localbiz": {
+      "n": 36,
+      "d": 89,
+      "pct": 40.4
+    },
+    "click_to_call": {
+      "n": 59,
+      "d": 89,
+      "pct": 66.3
+    },
+    "contact_form": {
+      "n": 48,
+      "d": 89,
+      "pct": 53.9
+    },
+    "cta": {
+      "n": 72,
+      "d": 89,
+      "pct": 80.9
+    },
+    "brampton": {
+      "n": 73,
+      "d": 89,
+      "pct": 82
+    },
+    "service_pages": {
+      "n": 42,
+      "d": 89,
+      "pct": 47.2
+    },
+    "analytics": {
+      "n": 83,
+      "d": 89,
+      "pct": 93.3
+    },
+    "gtm": {
+      "n": 24,
+      "d": 89,
+      "pct": 27
+    },
+    "ga4": {
+      "n": 82,
+      "d": 89,
+      "pct": 92.1
+    },
+    "sitemap": {
+      "n": 79,
+      "d": 89,
+      "pct": 88.8
+    },
+    "robots": {
+      "n": 71,
+      "d": 89,
+      "pct": 79.8
+    },
+    "canonical": {
+      "n": 70,
+      "d": 89,
+      "pct": 78.7
+    },
+    "title": {
+      "n": 86,
+      "d": 89,
+      "pct": 96.6
+    },
+    "meta": {
+      "n": 65,
+      "d": 89,
+      "pct": 73
+    },
+    "h1": {
+      "n": 64,
+      "d": 89,
+      "pct": 71.9
+    },
+    "viewport_missing": {
+      "n": 4,
+      "d": 89,
+      "pct": 4.5
+    },
+    "reviews": {
+      "n": 17,
+      "d": 89,
+      "pct": 19.1
+    },
+    "hours": {
+      "n": 52,
+      "d": 89,
+      "pct": 58.4
+    },
+    "booking": {
+      "n": 27,
+      "d": 89,
+      "pct": 30.3
+    },
+    "phone": {
+      "n": 71,
+      "d": 89,
+      "pct": 79.8
+    },
+    "address": {
+      "n": 66,
+      "d": 89,
+      "pct": 74.2
+    },
+    "faq": {
+      "n": 30,
+      "d": 89,
+      "pct": 33.7
+    },
+    "blog": {
+      "n": 41,
+      "d": 89,
+      "pct": 46.1
+    },
+    "pricing": {
+      "n": 4,
+      "d": 89,
+      "pct": 4.5
+    },
+    "corr_perf_pagesize": -0.542,
+    "corr_perf_requests": -0.619,
+    "perf_with_cta": {
+      "n": 60,
+      "median": 55.5
+    },
+    "perf_without_cta": {
+      "n": 14,
+      "median": 65.5
+    },
+    "industry": {
+      "Dental/medical": {
+        "n": 14,
+        "scored": 10,
+        "perfs": [
+          34,
+          60,
+          69,
+          42,
+          42,
+          79,
+          76,
+          52,
+          52,
+          67
+        ],
+        "wp": 8,
+        "html": 13,
+        "schema": 11,
+        "localbiz": 8,
+        "cta": 13,
+        "form": 7,
+        "call": 10,
+        "median_perf": 56,
+        "mean_perf": 57.3
+      },
+      "Legal": {
+        "n": 8,
+        "scored": 8,
+        "perfs": [
+          72,
+          60,
+          62,
+          96,
+          69,
+          72,
+          86,
+          64
+        ],
+        "wp": 2,
+        "html": 7,
+        "schema": 3,
+        "localbiz": 2,
+        "cta": 4,
+        "form": 2,
+        "call": 5,
+        "median_perf": 70.5,
+        "mean_perf": 72.6
+      },
+      "Accounting": {
+        "n": 8,
+        "scored": 6,
+        "perfs": [
+          56,
+          66,
+          60,
+          53,
+          55,
+          90
+        ],
+        "wp": 5,
+        "html": 8,
+        "schema": 3,
+        "localbiz": 2,
+        "cta": 6,
+        "form": 3,
+        "call": 7,
+        "median_perf": 58,
+        "mean_perf": 63.3
+      },
+      "Home services": {
+        "n": 10,
+        "scored": 7,
+        "perfs": [
+          64,
+          41,
+          36,
+          36,
+          55,
+          72,
+          65
+        ],
+        "wp": 5,
+        "html": 10,
+        "schema": 9,
+        "localbiz": 4,
+        "cta": 9,
+        "form": 7,
+        "call": 8,
+        "median_perf": 55,
+        "mean_perf": 52.7
+      },
+      "Construction/renovation": {
+        "n": 8,
+        "scored": 4,
+        "perfs": [
+          82,
+          36,
+          52,
+          63
+        ],
+        "wp": 5,
+        "html": 7,
+        "schema": 5,
+        "localbiz": 3,
+        "cta": 7,
+        "form": 5,
+        "call": 6,
+        "median_perf": 57.5,
+        "mean_perf": 58.3
+      },
+      "Restaurants": {
+        "n": 10,
+        "scored": 9,
+        "perfs": [
+          54,
+          31,
+          56,
+          94,
+          91,
+          30,
+          45,
+          87,
+          93
+        ],
+        "wp": 3,
+        "html": 7,
+        "schema": 6,
+        "localbiz": 5,
+        "cta": 6,
+        "form": 2,
+        "call": 2,
+        "median_perf": 56,
+        "mean_perf": 64.6
+      },
+      "Beauty/personal care": {
+        "n": 8,
+        "scored": 7,
+        "perfs": [
+          56,
+          98,
+          71,
+          36,
+          33,
+          39,
+          95
+        ],
+        "wp": 5,
+        "html": 8,
+        "schema": 3,
+        "localbiz": 3,
+        "cta": 5,
+        "form": 4,
+        "call": 4,
+        "median_perf": 56,
+        "mean_perf": 61.1
+      },
+      "Automotive": {
+        "n": 6,
+        "scored": 4,
+        "perfs": [
+          55,
+          57,
+          49,
+          90
+        ],
+        "wp": 5,
+        "html": 6,
+        "schema": 4,
+        "localbiz": 2,
+        "cta": 5,
+        "form": 5,
+        "call": 2,
+        "median_perf": 56,
+        "mean_perf": 62.8
+      },
+      "Real estate": {
+        "n": 7,
+        "scored": 7,
+        "perfs": [
+          24,
+          32,
+          80,
+          28,
+          45,
+          47,
+          52
+        ],
+        "wp": 1,
+        "html": 7,
+        "schema": 2,
+        "localbiz": 0,
+        "cta": 3,
+        "form": 4,
+        "call": 6,
+        "median_perf": 45,
+        "mean_perf": 44
+      },
+      "Fitness": {
+        "n": 2,
+        "scored": 2,
+        "perfs": [
+          63,
+          58
+        ],
+        "wp": 2,
+        "html": 2,
+        "schema": 1,
+        "localbiz": 1,
+        "cta": 2,
+        "form": 0,
+        "call": 1,
+        "median_perf": 60.5,
+        "mean_perf": 60.5
+      },
+      "Education": {
+        "n": 6,
+        "scored": 6,
+        "perfs": [
+          64,
+          79,
+          23,
+          49,
+          25,
+          43
+        ],
+        "wp": 2,
+        "html": 6,
+        "schema": 3,
+        "localbiz": 2,
+        "cta": 6,
+        "form": 3,
+        "call": 4,
+        "median_perf": 46,
+        "mean_perf": 47.2
+      },
+      "Retail": {
+        "n": 8,
+        "scored": 7,
+        "perfs": [
+          83,
+          67,
+          75,
+          25,
+          22,
+          54,
+          35
+        ],
+        "wp": 1,
+        "html": 8,
+        "schema": 5,
+        "localbiz": 4,
+        "cta": 6,
+        "form": 6,
+        "call": 4,
+        "median_perf": 54,
+        "mean_perf": 51.6
+      }
+    },
+    "cms_perf": {
+      "not identified": {
+        "n": 29,
+        "median": 60,
+        "mean": 60.1
+      },
+      "WordPress": {
+        "n": 35,
+        "median": 56,
+        "mean": 56.6
+      },
+      "Squarespace": {
+        "n": 2,
+        "median": 49,
+        "mean": 49
+      },
+      "GoDaddy": {
+        "n": 1,
+        "median": 86,
+        "mean": 86
+      },
+      "Wix": {
+        "n": 3,
+        "median": 54,
+        "mean": 57.3
+      },
+      "generator:Hostinger Website Builder": {
+        "n": 1,
+        "median": 64,
+        "mean": 64
+      },
+      "Shopify": {
+        "n": 5,
+        "median": 67,
+        "mean": 57.8
+      },
+      "Webflow": {
+        "n": 1,
+        "median": 36,
+        "mean": 36
+      }
+    },
+    "cms_counts": {
+      "not identified": 28,
+      "GoDaddy": 4,
+      "WordPress": 44,
+      "Squarespace": 2,
+      "Wix": 3,
+      "generator:Hostinger Website Builder": 1,
+      "Shopify": 6,
+      "Webflow": 1
+    }
+  },
+  "examples": {
+    "high_perf": [
+      {
+        "name": "Mahek Beauty Salon",
+        "url": "http://www.mahekbeauty.com/",
+        "industry": "Beauty/personal care",
+        "perf": 98,
+        "a11y": 79,
+        "seo": 73,
+        "bp": 78,
+        "lcp": 1.4,
+        "cls": 0,
+        "size": 3119,
+        "req": 2,
+        "cms": "WordPress",
+        "schema": false,
+        "localbiz": false,
+        "cta": null,
+        "call": false,
+        "form": true,
+        "brampton": false,
+        "sitemap": true,
+        "notes": null
+      },
+      {
+        "name": "Rathod Law Firm",
+        "url": "https://www.rathodlaw.com/",
+        "industry": "Legal",
+        "perf": 96,
+        "a11y": 96,
+        "seo": 100,
+        "bp": 100,
+        "lcp": 2.1,
+        "cls": 0,
+        "size": 1164952,
+        "req": 20,
+        "cms": "not identified",
+        "schema": true,
+        "localbiz": false,
+        "cta": null,
+        "call": true,
+        "form": false,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      },
+      {
+        "name": "Goldy Laser and Spa",
+        "url": "http://goldylaserandspa.com/",
+        "industry": "Beauty/personal care",
+        "perf": 95,
+        "a11y": 93,
+        "seo": 90,
+        "bp": 78,
+        "lcp": 2.3,
+        "cls": 0,
+        "size": 115750,
+        "req": 5,
+        "cms": "not identified",
+        "schema": false,
+        "localbiz": false,
+        "cta": null,
+        "call": false,
+        "form": false,
+        "brampton": false,
+        "sitemap": false,
+        "notes": null
+      },
+      {
+        "name": "Tikka Junction",
+        "url": "http://tikkajunctioncanada.com/",
+        "industry": "Restaurants",
+        "perf": 94,
+        "a11y": 100,
+        "seo": 100,
+        "bp": 81,
+        "lcp": 3,
+        "cls": 0,
+        "size": 403441,
+        "req": 28,
+        "cms": "not identified",
+        "schema": true,
+        "localbiz": true,
+        "cta": "contact us",
+        "call": false,
+        "form": false,
+        "brampton": true,
+        "sitemap": false,
+        "notes": null
+      },
+      {
+        "name": "Kesar Sweets & Restaurant",
+        "url": "https://www.kesars.ca/?utm_source=google&utm_medium=organic&utm_campaign=gbmmaish",
+        "industry": "Restaurants",
+        "perf": 93,
+        "a11y": 88,
+        "seo": 92,
+        "bp": 96,
+        "lcp": 3,
+        "cls": 0,
+        "size": 2660382,
+        "req": 29,
+        "cms": "WordPress",
+        "schema": true,
+        "localbiz": true,
+        "cta": "schedule",
+        "call": true,
+        "form": true,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      }
+    ],
+    "low_perf": [
+      {
+        "name": "Punjab Jewellers",
+        "url": "https://punjabjewellers.ca/",
+        "industry": "Retail",
+        "perf": 22,
+        "a11y": 91,
+        "seo": 92,
+        "bp": 96,
+        "lcp": 35.5,
+        "cls": 1.007,
+        "size": 11764276,
+        "req": 262,
+        "cms": "Shopify",
+        "schema": true,
+        "localbiz": true,
+        "cta": "contact us",
+        "call": true,
+        "form": true,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      },
+      {
+        "name": "Ultimate Drivers Brampton",
+        "url": "https://www.ultimatedrivers.ca/driving-school/BRAMPTON",
+        "industry": "Education",
+        "perf": 23,
+        "a11y": 57,
+        "seo": 85,
+        "bp": 77,
+        "lcp": 6.9,
+        "cls": 0.342,
+        "size": 3527800,
+        "req": 127,
+        "cms": "not identified",
+        "schema": true,
+        "localbiz": true,
+        "cta": "schedule",
+        "call": true,
+        "form": false,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      },
+      {
+        "name": "German Sandhu Realtor",
+        "url": "https://germansandhu.ca/",
+        "industry": "Real estate",
+        "perf": 24,
+        "a11y": 82,
+        "seo": 92,
+        "bp": 69,
+        "lcp": 31.2,
+        "cls": 0.185,
+        "size": 12426686,
+        "req": 137,
+        "cms": "WordPress",
+        "schema": true,
+        "localbiz": false,
+        "cta": null,
+        "call": true,
+        "form": true,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      },
+      {
+        "name": "Academy for Mathematics & English, Dusk",
+        "url": "http://www.tutoringacademy.ca/locations/ontario/dusk.php",
+        "industry": "Education",
+        "perf": 25,
+        "a11y": 82,
+        "seo": 85,
+        "bp": 52,
+        "lcp": 18.8,
+        "cls": 0.089,
+        "size": 9422857,
+        "req": 205,
+        "cms": "WordPress",
+        "schema": true,
+        "localbiz": true,
+        "cta": "call now",
+        "call": true,
+        "form": true,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      },
+      {
+        "name": "Maharaja Jewellers | Most Luxurious & Trusted Indian Gold & Diamond Jewelry Store in Brampton",
+        "url": "https://www.tiktok.com/@maharaja.jewellers",
+        "industry": "Retail",
+        "perf": 25,
+        "a11y": 77,
+        "seo": 85,
+        "bp": 77,
+        "lcp": 17.9,
+        "cls": 0.107,
+        "size": 3334839,
+        "req": 164,
+        "cms": "not identified",
+        "schema": false,
+        "localbiz": false,
+        "cta": null,
+        "call": false,
+        "form": false,
+        "brampton": false,
+        "sitemap": true,
+        "notes": null
+      }
+    ],
+    "strong_schema": [
+      {
+        "name": "Salvaggio Dentistry",
+        "url": "https://www.salvaggiodentistry.ca/",
+        "industry": "Dental/medical",
+        "perf": 34,
+        "a11y": 85,
+        "seo": 100,
+        "bp": 96,
+        "lcp": 17.3,
+        "cls": 0.307,
+        "size": 3510811,
+        "req": 95,
+        "cms": "not identified",
+        "schema": true,
+        "localbiz": true,
+        "cta": "contact us",
+        "call": true,
+        "form": true,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      },
+      {
+        "name": "Braydon Dental Care",
+        "url": "https://braydondentalcare.com/?utm_source=google&utm_content=gbp",
+        "industry": "Dental/medical",
+        "perf": 69,
+        "a11y": 96,
+        "seo": 100,
+        "bp": 96,
+        "lcp": 4.5,
+        "cls": 0.179,
+        "size": 18778498,
+        "req": 37,
+        "cms": "not identified",
+        "schema": true,
+        "localbiz": true,
+        "cta": "call now",
+        "call": true,
+        "form": true,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      },
+      {
+        "name": "North Park Family Dental Care",
+        "url": "https://www.porterdentistry.ca/?utm_source=google&utm_medium=google_business_profile&utm_campaign=website_click",
+        "industry": "Dental/medical",
+        "perf": 42,
+        "a11y": 74,
+        "seo": 92,
+        "bp": 54,
+        "lcp": 12.7,
+        "cls": 0.005,
+        "size": 3134790,
+        "req": 79,
+        "cms": "not identified",
+        "schema": true,
+        "localbiz": true,
+        "cta": "contact us",
+        "call": true,
+        "form": true,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      },
+      {
+        "name": "Five Senses Spa",
+        "url": "http://fivesenseswellness.com/",
+        "industry": "Dental/medical",
+        "perf": "not available",
+        "a11y": "not available",
+        "seo": "not available",
+        "bp": "not available",
+        "lcp": "not available",
+        "cls": "not available",
+        "size": 1450829,
+        "req": "not available",
+        "cms": "WordPress",
+        "schema": true,
+        "localbiz": true,
+        "cta": "book now",
+        "call": false,
+        "form": false,
+        "brampton": true,
+        "sitemap": true,
+        "notes": "timed out"
+      }
+    ],
+    "strong_conv": [
+      {
+        "name": "Salvaggio Dentistry",
+        "url": "https://www.salvaggiodentistry.ca/",
+        "industry": "Dental/medical",
+        "perf": 34,
+        "a11y": 85,
+        "seo": 100,
+        "bp": 96,
+        "lcp": 17.3,
+        "cls": 0.307,
+        "size": 3510811,
+        "req": 95,
+        "cms": "not identified",
+        "schema": true,
+        "localbiz": true,
+        "cta": "contact us",
+        "call": true,
+        "form": true,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      },
+      {
+        "name": "Braydon Dental Care",
+        "url": "https://braydondentalcare.com/?utm_source=google&utm_content=gbp",
+        "industry": "Dental/medical",
+        "perf": 69,
+        "a11y": 96,
+        "seo": 100,
+        "bp": 96,
+        "lcp": 4.5,
+        "cls": 0.179,
+        "size": 18778498,
+        "req": 37,
+        "cms": "not identified",
+        "schema": true,
+        "localbiz": true,
+        "cta": "call now",
+        "call": true,
+        "form": true,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      },
+      {
+        "name": "North Park Family Dental Care",
+        "url": "https://www.porterdentistry.ca/?utm_source=google&utm_medium=google_business_profile&utm_campaign=website_click",
+        "industry": "Dental/medical",
+        "perf": 42,
+        "a11y": 74,
+        "seo": 92,
+        "bp": 54,
+        "lcp": 12.7,
+        "cls": 0.005,
+        "size": 3134790,
+        "req": 79,
+        "cms": "not identified",
+        "schema": true,
+        "localbiz": true,
+        "cta": "contact us",
+        "call": true,
+        "form": true,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      },
+      {
+        "name": "Complete Physio & Sports Rehab",
+        "url": "http://www.completephysiorehab.ca/",
+        "industry": "Dental/medical",
+        "perf": 79,
+        "a11y": 95,
+        "seo": 92,
+        "bp": 92,
+        "lcp": 4.4,
+        "cls": 0.146,
+        "size": 630529,
+        "req": 31,
+        "cms": "WordPress",
+        "schema": true,
+        "localbiz": false,
+        "cta": "contact us",
+        "call": true,
+        "form": true,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      }
+    ],
+    "wp_slow": [
+      {
+        "name": "German Sandhu Realtor",
+        "url": "https://germansandhu.ca/",
+        "industry": "Real estate",
+        "perf": 24,
+        "a11y": 82,
+        "seo": 92,
+        "bp": 69,
+        "lcp": 31.2,
+        "cls": 0.185,
+        "size": 12426686,
+        "req": 137,
+        "cms": "WordPress",
+        "schema": true,
+        "localbiz": false,
+        "cta": null,
+        "call": true,
+        "form": true,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      },
+      {
+        "name": "Academy for Mathematics & English, Dusk",
+        "url": "http://www.tutoringacademy.ca/locations/ontario/dusk.php",
+        "industry": "Education",
+        "perf": 25,
+        "a11y": 82,
+        "seo": 85,
+        "bp": 52,
+        "lcp": 18.8,
+        "cls": 0.089,
+        "size": 9422857,
+        "req": 205,
+        "cms": "WordPress",
+        "schema": true,
+        "localbiz": true,
+        "cta": "call now",
+        "call": true,
+        "form": true,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      },
+      {
+        "name": "Tandoori Flame Brampton",
+        "url": "http://tandooriflame.com/",
+        "industry": "Restaurants",
+        "perf": 31,
+        "a11y": 76,
+        "seo": 85,
+        "bp": 73,
+        "lcp": 41.4,
+        "cls": 0.747,
+        "size": 15061940,
+        "req": 107,
+        "cms": "WordPress",
+        "schema": false,
+        "localbiz": false,
+        "cta": "book now",
+        "call": true,
+        "form": false,
+        "brampton": true,
+        "sitemap": true,
+        "notes": null
+      }
+    ]
+  },
+  "flagged": [
+    {
+      "name": "Heal360 Physio and Rehab | Massage | Physiotherapy | Motor Vehicle Accident Rehab | Workplace Injury Rehab",
+      "reason": "domain-not-found",
+      "industry": "Dental/medical"
+    },
+    {
+      "name": "Speedy Auto Service Brampton North",
+      "reason": "national-chain-or-municipal",
+      "industry": "Automotive"
+    },
+    {
+      "name": "Cassie Campbell Community Centre",
+      "reason": "national-chain-or-municipal",
+      "industry": "Fitness"
+    },
+    {
+      "name": "Planet Fitness",
+      "reason": "national-chain-or-municipal",
+      "industry": "Fitness"
+    },
+    {
+      "name": "Fit4Less",
+      "reason": "national-chain-or-municipal",
+      "industry": "Fitness"
+    },
+    {
+      "name": "Brampton YMCA",
+      "reason": "national-chain-or-municipal",
+      "industry": "Fitness"
+    },
+    {
+      "name": "Indigo - Brampton",
+      "reason": "national-chain-or-municipal",
+      "industry": "Retail"
+    }
+  ]
+}
