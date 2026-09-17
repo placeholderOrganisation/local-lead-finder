@@ -59,6 +59,8 @@ function objectResponse(obj, key) {
   headers.set("etag", obj.httpEtag);
   if (!headers.has("cache-control")) headers.set("cache-control", cacheControlFor(key));
   headers.set("x-content-type-options", "nosniff");
+  // Public static previews; the widget (other origin) fetches manifest.json.
+  headers.set("access-control-allow-origin", "*");
   return new Response(obj.body, { headers });
 }
 

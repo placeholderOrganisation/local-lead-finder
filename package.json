@@ -17,8 +17,8 @@
     "verify:mockup": "node scripts/verify-mockup.mjs",
     "verify:hosting": "node scripts/verify-hosting.mjs",
     "deploy:site": "node scripts/deploy-site.mjs",
-    "deploy:scope": "node scripts/deploy-site.mjs scope --template accountant",
-    "seed:scope": "node scripts/seed-scope-previews.mjs"
+    "deploy:scope": "node scripts/deploy-mockups.mjs",
+    "seed:scope": "node scripts/shoot-mockups.mjs"
   },
   "engines": {
     "node": ">=22.18"
