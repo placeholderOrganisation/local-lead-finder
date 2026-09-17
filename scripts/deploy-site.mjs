@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-// npm run deploy:site -- <type>
+// npm run deploy:site -- <type> [--template <name>]
 // Create mockup-<type> bucket, Next static export, upload out/ to bucket root, deploy Worker.
+// --template lets an env reuse another env's Next app (e.g. the `scope` env, which
+// has no template/scope of its own, builds template/accountant).
 
 import { spawnSync } from "node:child_process";
 import { readdir, readFile, rename, stat, writeFile } from "node:fs/promises";
@@ -12,12 +14,17 @@ import { putObject, r2Enabled } from "../src/r2.js";
 import { mimeFor } from "../src/site-config.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const type = slug(process.argv[2] || "");
+const args = process.argv.slice(2);
+const templateFlagIndex = args.indexOf("--template");
+const templateName =
+  templateFlagIndex !== -1 ? slug(args[templateFlagIndex + 1] || "") : "";
+const type = slug(args.find((a, i) => !a.startsWith("--") && i !== templateFlagIndex + 1) || "");
+const templateType = templateName || type;
 
 loadEnv();
 
 if (!type) {
-  console.error("Usage: npm run deploy:site -- <type>   e.g. accountant");
+  console.error("Usage: npm run deploy:site -- <type> [--template <name>]   e.g. accountant");
   process.exit(1);
 }
 
@@ -39,10 +46,10 @@ if (!subdomain) {
   process.exit(1);
 }
 
-const templateDir = join(ROOT, "template", type);
+const templateDir = join(ROOT, "template", templateType);
 const pkg = join(templateDir, "package.json");
 if (!existsSync(pkg)) {
-  console.error(`No Next app at template/${type}/ (missing package.json)`);
+  console.error(`No Next app at template/${templateType}/ (missing package.json)`);
   process.exit(1);
 }
 
@@ -61,15 +68,15 @@ if (created.status !== 0) {
   console.log(`  bucket exists (ok)`);
 }
 
-console.log(`→ npm --prefix template/${type} install`);
+console.log(`→ npm --prefix template/${templateType} install`);
 run("npm", ["install"], templateDir);
 
-console.log(`→ npm --prefix template/${type} run build`);
+console.log(`→ npm --prefix template/${templateType} run build`);
 run("npm", ["run", "build"], templateDir);
 
 const outDir = join(templateDir, "out");
 if (!existsSync(join(outDir, "index.html"))) {
-  console.error(`Build did not produce template/${type}/out/index.html`);
+  console.error(`Build did not produce template/${templateType}/out/index.html`);
   process.exit(1);
 }
 

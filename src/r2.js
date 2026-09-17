@@ -162,7 +162,20 @@ async function putViaApi(accountId, token, bucket, key, body, contentType, cache
     "Content-Type": contentType || "application/octet-stream",
   };
   if (cacheControl) headers["Cache-Control"] = cacheControl;
-  const res = await fetch(url, { method: "PUT", headers, body });
+  // Retry transient network failures (dropped sockets, DNS blips) with backoff.
+  // Large batch uploads (bulk configs/screenshots) reliably hit an occasional
+  // `UND_ERR_SOCKET: other side closed`; a couple of retries clears it. HTTP
+  // responses (incl. 4xx/5xx) are handled below, not retried here.
+  let res;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      res = await fetch(url, { method: "PUT", headers, body });
+      break;
+    } catch (err) {
+      if (attempt >= 4) throw err;
+      await new Promise((r) => setTimeout(r, 400 * attempt));
+    }
+  }
   if (res.ok) return;
   const text = await res.text().catch(() => "");
   // WAF blocks some keys (Next hashed chunks named `*..js`). Wrangler PUT still works.

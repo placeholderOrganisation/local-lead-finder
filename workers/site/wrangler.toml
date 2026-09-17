@@ -8,3 +8,13 @@ name = "mockup-accountant"
 [[env.accountant.r2_buckets]]
 binding = "BUCKET"
 bucket_name = "mockup-accountant"
+
+# Generic per-leaf-node previews for the "Scope your site" tool. Same worker
+# code; keys are the leaf slug (e.g. salon-bookings/config.json) rather than a
+# Google placeId. Doubles as a shareable outreach asset.
+[env.scope]
+name = "mockup-scope"
+
+[[env.scope.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "mockup-scope"

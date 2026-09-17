@@ -19,11 +19,20 @@ function readStored(): DesignId {
   return n === 2 || n === 3 ? n : 1
 }
 
+// A `?design=1|2|3` query param pins the theme for shareable/deep-linked
+// previews (e.g. the "Scope your site" tool's per-theme thumbnails). It wins
+// over the stored preference so a shared link always renders as intended.
+function readDesignParam(): DesignId | null {
+  if (typeof window === "undefined") return null
+  const n = Number(new URLSearchParams(window.location.search).get("design"))
+  return n === 2 || n === 3 ? n : n === 1 ? 1 : null
+}
+
 export function DesignProvider({ children }: { children: ReactNode }) {
   const [design, setDesignState] = useState<DesignId>(1)
 
   useEffect(() => {
-    setDesignState(readStored())
+    setDesignState(readDesignParam() ?? readStored())
   }, [])
 
   function setDesign(id: DesignId) {
