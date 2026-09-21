@@ -11,6 +11,67 @@ reads `config.json` → `npm run deploy:scope` + `npm run seed:scope`.
 
 ---
 
+## Distinctiveness & the wow factor — READ THIS FIRST
+
+Most of these fail the same way: they end up **structurally identical** and just recolored. A
+different palette, font, or icon set on the **same skeleton** (sticky top-bar → text-left /
+image-right hero → "eyebrow label + heading + 3-col card grid" repeated per section →
+split contact-with-map → footer) reads as *one website wearing costumes*. That is a **failure**,
+even if each one is individually pretty.
+
+Two non-negotiables for every template:
+
+### 1. A different structural archetype (never a recolor)
+
+Before designing, **look at the templates that already exist in this businessType** and make
+yours differ on **at least four** of these axes — not just colour/type:
+
+- **Navigation** — sticky top bar · fixed left **sidebar** with numbered nav · floating
+  centered **pill** nav · centered **editorial masthead** (brand centered, nav below) ·
+  minimal wordmark-only.
+- **Hero** — split text/image · **full-bleed image** with overlay · **type-only** centered (no
+  image) · **bento/collage** grid · **split-screen** (message vs. inline form/card) ·
+  **oversized kinetic type** bleeding off the edge · **magazine cover**.
+- **Services** — 3-col cards · printed **price-list** with dotted leaders · **numbered
+  editorial** list · **horizontal snap-scroll** row · **icon-tile** grid · alternating
+  full-width feature rows.
+- **Section rhythm / composition** — vary the order, the backgrounds (dark bands vs. light),
+  asymmetry, sticky rails, full-bleed bands. Do **not** repeat one "eyebrow + centered heading
+  + grid" formula down the whole page.
+- **Art direction / mood** — commit to a real type system (elegant serif · bold condensed
+  display · warm editorial · restrained mono) and a point of view, à la Linear, Arc, Oura,
+  or a good print magazine.
+
+Also vary the **connective tissue** — header, section intros, the contact block, and the
+footer must **not** be copy-paste identical between templates in the same type.
+
+### 2. One signature "wow" moment (required)
+
+Every template needs **one bespoke, memorable element** that makes it feel custom-built rather
+than generated. It should be genuinely of-the-business, not decoration. Examples that have
+worked:
+
+- Barbershop → **printed price-list menu** with dotted leaders, on a fixed-sidebar layout
+- Nail bar → **bento-collage hero** + a running **marquee** of services
+- Med-spa → **type-only editorial hero** + full-width image bands + numbered treatment list
+- Electrician → **split-screen hero** with an inline quote form on a solid colour panel
+- Landscaper → **full-bleed image hero** + a **before/after** section
+- Plumber → **24/7 emergency banner** + a utility "stats" panel (response time, $0 surcharge)
+- Fitness → **oversized kinetic type**, a **marquee**, and a weekly **timetable with today lit**
+- Cleaning → a **draggable before/after reveal slider** as the hero centerpiece
+- Photography → **magazine-cover hero** + a **sticky caption rail** beside a scrolling gallery
+- Premium/analytics → **animated count-up** hero stats, 3D **glare cards**, a traveling
+  **BorderBeam** on the featured card
+
+Prefer one strong idea executed well over many small flourishes. Keep it accessible and honor
+`prefers-reduced-motion`.
+
+**Self-check before shipping:** *If I recolored this to match another template in the same
+type, would they look like the same site?* If yes, the structure isn't different enough — go
+back to the archetype menu above.
+
+---
+
 ## MASTER PROMPT (paste first)
 
 > Build a polished, modern **marketing website template** for a **{{BUSINESS_TYPE}}**, as
@@ -67,13 +128,20 @@ reads `config.json` → `npm run deploy:scope` + `npm run seed:scope`.
 > 9. Contact — address, a "Get directions" button using `business.mapsUrl`, `business.hours`.
 > 10. Footer — name, area, phone, small print.
 >
-> **Design bar (important):** modern, warm, and visually rich — real hierarchy, generous
-> whitespace, a tasteful accent color, rounded cards, soft shadows, good type scale. It must
-> look like a premium custom site, **not** a generic admin dashboard and **not** sparse. Use
-> tasteful placeholder imagery (gradient panels or `/placeholder.svg?height=..&width=..`) with
-> a documented convention so nothing ever looks broken or empty.
+> **Design bar (important):** modern and visually rich — real hierarchy, generous whitespace,
+> a confident point of view, a genuine type system, good type scale. It must look like a
+> premium **custom** site (think Linear, Arc, Oura, or a good print magazine), **not** a
+> generic admin dashboard, **not** sparse, and **not** a recolored version of the other
+> templates. **Commit to one structural archetype and one signature "wow" moment** (see
+> "Distinctiveness & the wow factor" above) — vary the navigation, hero, service layout, and
+> section rhythm so this design is clearly its own site. Use tasteful placeholder imagery
+> (gradient/flat panels or `/placeholder.svg?height=..&width=..`) with a documented convention
+> so nothing ever looks broken or empty.
 >
 > **Rules:**
+> - **Be structurally distinct.** Pick a navigation pattern, hero archetype, and service layout
+>   this businessType doesn't already use, and give the design one signature "wow" moment. A
+>   recolor of an existing template is a failure — see "Distinctiveness & the wow factor".
 > - Render from `config` ONLY. If an array is empty or a string is blank, **hide that section**
 >   gracefully — never show empty placeholders or "undefined".
 > - Mobile-first and accessible: semantic landmarks, visible focus states, aria labels on icon
