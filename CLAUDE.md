@@ -1,3 +1,5 @@
+@AGENTS.md
+
 # CLAUDE.md — local-lead-finder
 
 ## Scope-tool design previews (Cloudflare Worker + R2)
